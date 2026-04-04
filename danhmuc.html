@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tra cứu giá thuốc nội bộ</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body {
+  font-family: Arial;
+  margin: 0;
+  background: #f0f2f5;
+}
+
+header {
+  background: #2c7be5;
+  color: white;
+  padding: 15px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.container {
+  padding: 15px;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: none;
+  margin-bottom: 10px;
+}
+
+.item {
+  background: white;
+  padding: 12px;
+  margin-top: 8px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.price {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+#progress {
+  height: 4px;
+  background: #2c7be5;
+  width: 0%;
+  transition: width 0.3s;
+}
+
+#status {
+  margin-top: 8px;
+  color: #666;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  Tra cứu giá thuốc nội bộ<br>
+  <small>code by Phúc Nguyễn</small>
+</header>
+
+<div id="progress"></div>
+
+<div class="container">
+  <input id="search" placeholder="Nhập tên thuốc...">
+  <div id="status"></div>
+  <div id="result"></div>
+</div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbyrDHrjotcZovd3NBGYZJcfMbQvgNk3vBtJMW4TH-dsYhn_lsK8jumut5WCNTipgRfd/exec";
+
+let allData = [];
+const input = document.getElementById("search");
+const resultDiv = document.getElementById("result");
+const statusDiv = document.getElementById("status");
+const progress = document.getElementById("progress");
+
+// ===== NORMALIZE CHUỖI (FIX CHÍNH) =====
+function normalizeText(str) {
+  return (str || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// ===== LOAD CACHE =====
+function loadCache() {
+  const cache = localStorage.getItem("drugData");
+  if (cache) {
+    allData = JSON.parse(cache);
+    statusDiv.innerHTML = "Offline (" + allData.length + " thuốc)";
+  }
+}
+
+// ===== LOAD DATA =====
+async function loadData() {
+  progress.style.width = "30%";
+  statusDiv.innerHTML = "Đang tải dữ liệu...";
+
+  try {
+    const res = await fetch(API + "?q=");
+    const data = await res.json();
+
+    progress.style.width = "100%";
+
+    allData = data.map(d => ({
+      display: d.name,
+      search: normalizeText(d.name),
+      price: d.price
+    }));
+
+    localStorage.setItem("drugData", JSON.stringify(allData));
+
+    statusDiv.innerHTML = "Sẵn sàng (" + allData.length + " thuốc)";
+    setTimeout(() => progress.style.width = "0%", 500);
+
+    console.log("DATA LOADED:", allData);
+
+  } catch (err) {
+    statusDiv.innerHTML = "Lỗi tải dữ liệu";
+    console.error(err);
+  }
+}
+
+// ===== SEARCH =====
+input.addEventListener("input", () => {
+  const q = normalizeText(input.value);
+
+  if (q.length < 2) {
+    resultDiv.innerHTML = "";
+    return;
+  }
+
+  const result = allData
+    .filter(d => d.search.includes(q))
+    .slice(0, 30);
+
+  console.log("SEARCH:", q);
+  console.log("MATCH:", result);
+
+  if (!result.length) {
+    resultDiv.innerHTML = "Không tìm thấy";
+    return;
+  }
+
+  resultDiv.innerHTML = result.map(d => `
+    <div class="item">
+      <b>${d.display}</b><br>
+      <span class="price">${Number(d.price).toLocaleString()}đ</span>
+    </div>
+  `).join("");
+});
+
+// INIT
+loadCache();
+loadData();
+
+// ===== PWA =====
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+
+</body>
+</html>
