@@ -62,6 +62,7 @@ input {
   height: 3px;
   background: #2c7be5;
   width: 0%;
+  transition: 0.3s;
 }
 
 #status {
@@ -93,7 +94,7 @@ input {
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbyrDHrjotcZovd3NBGYZJcfMbQvgNk3vBtJMW4TH-dsYhn_lsK8jumut5WCNTipgRfd/exec";
+const API = "https://script.google.com/macros/s/AKfycbyydD1asQx6H9gYz4nAT2gAAscxBQLjWKV4bfK5gFpjoAGyoYHfm_aQEObrt72_Xost/exec";
 
 let allData = [];
 let debounceTimer;
@@ -114,44 +115,53 @@ function normalizeText(str) {
     .trim();
 }
 
+// ===== LOAD CACHE =====
+function loadCache() {
+  const cache = localStorage.getItem("drugData");
+  if (cache) {
+    allData = JSON.parse(cache);
+    statusDiv.innerHTML = "Offline (" + allData.length + " thuốc)";
+  }
+}
+
 // ===== LOAD DATA =====
 async function loadData() {
   progress.style.width = "30%";
   statusDiv.innerHTML = "Đang tải dữ liệu...";
 
   try {
-    const res = await fetch(API + "?q=");
+    const res = await fetch(API);
     const data = await res.json();
 
     progress.style.width = "100%";
 
     allData = data.map(d => {
-      const name = d.name || d["Tên hàng"] || "";
+      let name, price;
+
+      if (Array.isArray(d)) {
+        name = d[0];
+        price = d[1];
+      } else {
+        name = d.name || d["Tên hàng"] || "";
+        price = d.price || d["Giá bán"] || 0;
+      }
+
       return {
         display: name,
         search: normalizeText(name),
-        price: d.price || d["Giá bán"] || 0
+        price: price
       };
     });
+
+    localStorage.setItem("drugData", JSON.stringify(allData));
 
     statusDiv.innerHTML = "Sẵn sàng (" + allData.length + " thuốc)";
     setTimeout(() => progress.style.width = "0%", 500);
 
   } catch (err) {
     statusDiv.innerHTML = "Lỗi tải dữ liệu";
+    console.error(err);
   }
-}
-
-// ===== HIGHLIGHT =====
-function highlight(text, keyword) {
-  const index = text.toLowerCase().indexOf(keyword.toLowerCase());
-  if (index === -1) return text;
-
-  return text.substring(0, index) +
-    "<span class='highlight'>" +
-    text.substring(index, index + keyword.length) +
-    "</span>" +
-    text.substring(index + keyword.length);
 }
 
 // ===== SEARCH =====
@@ -165,10 +175,24 @@ function search() {
   }
 
   const keywords = q.split(" ");
+  const result = [];
 
-  const result = allData.filter(d =>
-    keywords.every(k => d.search.includes(k))
-  ).slice(0, 30);
+  for (let i = 0; i < allData.length; i++) {
+    const item = allData[i];
+
+    let match = true;
+    for (let k of keywords) {
+      if (!item.search.includes(k)) {
+        match = false;
+        break;
+      }
+    }
+
+    if (match) {
+      result.push(item);
+      if (result.length >= 30) break;
+    }
+  }
 
   if (!result.length) {
     resultDiv.innerHTML = `<div class="empty">Không tìm thấy</div>`;
@@ -183,13 +207,26 @@ function search() {
   `).join("");
 }
 
+// ===== HIGHLIGHT =====
+function highlight(text, keyword) {
+  const index = text.toLowerCase().indexOf(keyword.toLowerCase());
+  if (index === -1) return text;
+
+  return text.substring(0, index) +
+    "<span class='highlight'>" +
+    text.substring(index, index + keyword.length) +
+    "</span>" +
+    text.substring(index + keyword.length);
+}
+
 // ===== DEBOUNCE =====
 input.addEventListener("input", () => {
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(search, 250);
+  debounceTimer = setTimeout(search, 200);
 });
 
 // INIT
+loadCache();
 loadData();
 
 // ===== PWA =====
