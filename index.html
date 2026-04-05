@@ -15,11 +15,10 @@ body {
 }
 
 header {
-  background: #2c7be5;
+  background: linear-gradient(135deg,#2c7be5,#1a5edb);
   color: white;
-  padding: 15px;
+  padding: 18px;
   text-align: center;
-  font-weight: bold;
 }
 
 .container {
@@ -30,34 +29,50 @@ input {
   width: 100%;
   padding: 14px;
   font-size: 18px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: none;
   margin-bottom: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .item {
   background: white;
-  padding: 12px;
-  margin-top: 8px;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  padding: 14px;
+  margin-top: 10px;
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+  transition: 0.2s;
+}
+
+.item:hover {
+  transform: scale(1.02);
 }
 
 .price {
   color: #e74c3c;
   font-weight: bold;
+  font-size: 16px;
+}
+
+.highlight {
+  background: yellow;
 }
 
 #progress {
-  height: 4px;
+  height: 3px;
   background: #2c7be5;
   width: 0%;
-  transition: width 0.3s;
 }
 
 #status {
   margin-top: 8px;
   color: #666;
+}
+
+.empty {
+  text-align: center;
+  color: #999;
+  margin-top: 20px;
 }
 </style>
 </head>
@@ -81,29 +96,22 @@ input {
 const API = "https://script.google.com/macros/s/AKfycbyrDHrjotcZovd3NBGYZJcfMbQvgNk3vBtJMW4TH-dsYhn_lsK8jumut5WCNTipgRfd/exec";
 
 let allData = [];
+let debounceTimer;
+
 const input = document.getElementById("search");
 const resultDiv = document.getElementById("result");
 const statusDiv = document.getElementById("status");
 const progress = document.getElementById("progress");
 
-// ===== NORMALIZE CHUỖI (FIX CHÍNH) =====
+// ===== NORMALIZE =====
 function normalizeText(str) {
   return (str || "")
-    .toString()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-// ===== LOAD CACHE =====
-function loadCache() {
-  const cache = localStorage.getItem("drugData");
-  if (cache) {
-    allData = JSON.parse(cache);
-    statusDiv.innerHTML = "Offline (" + allData.length + " thuốc)";
-  }
 }
 
 // ===== LOAD DATA =====
@@ -117,56 +125,71 @@ async function loadData() {
 
     progress.style.width = "100%";
 
-    allData = data.map(d => ({
-      display: d.name,
-      search: normalizeText(d.name),
-      price: d.price
-    }));
-
-    localStorage.setItem("drugData", JSON.stringify(allData));
+    allData = data.map(d => {
+      const name = d.name || d["Tên hàng"] || "";
+      return {
+        display: name,
+        search: normalizeText(name),
+        price: d.price || d["Giá bán"] || 0
+      };
+    });
 
     statusDiv.innerHTML = "Sẵn sàng (" + allData.length + " thuốc)";
     setTimeout(() => progress.style.width = "0%", 500);
 
-    console.log("DATA LOADED:", allData);
-
   } catch (err) {
     statusDiv.innerHTML = "Lỗi tải dữ liệu";
-    console.error(err);
   }
 }
 
+// ===== HIGHLIGHT =====
+function highlight(text, keyword) {
+  const index = text.toLowerCase().indexOf(keyword.toLowerCase());
+  if (index === -1) return text;
+
+  return text.substring(0, index) +
+    "<span class='highlight'>" +
+    text.substring(index, index + keyword.length) +
+    "</span>" +
+    text.substring(index + keyword.length);
+}
+
 // ===== SEARCH =====
-input.addEventListener("input", () => {
-  const q = normalizeText(input.value);
+function search() {
+  const raw = input.value;
+  const q = normalizeText(raw);
 
   if (q.length < 2) {
     resultDiv.innerHTML = "";
     return;
   }
 
-  const result = allData
-    .filter(d => d.search.includes(q))
-    .slice(0, 30);
+  const keywords = q.split(" ");
 
-  console.log("SEARCH:", q);
-  console.log("MATCH:", result);
+  const result = allData.filter(d =>
+    keywords.every(k => d.search.includes(k))
+  ).slice(0, 30);
 
   if (!result.length) {
-    resultDiv.innerHTML = "Không tìm thấy";
+    resultDiv.innerHTML = `<div class="empty">Không tìm thấy</div>`;
     return;
   }
 
   resultDiv.innerHTML = result.map(d => `
     <div class="item">
-      <b>${d.display}</b><br>
+      <b>${highlight(d.display, raw)}</b><br>
       <span class="price">${Number(d.price).toLocaleString()}đ</span>
     </div>
   `).join("");
+}
+
+// ===== DEBOUNCE =====
+input.addEventListener("input", () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(search, 250);
 });
 
 // INIT
-loadCache();
 loadData();
 
 // ===== PWA =====
