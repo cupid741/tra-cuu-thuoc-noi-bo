@@ -36,6 +36,7 @@ input {
   border-radius: 12px;
   border: none;
   margin-bottom: 10px;
+  box-sizing: border-box;
 }
 
 .item {
@@ -43,11 +44,14 @@ input {
   padding: 14px;
   margin-top: 10px;
   border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
 .price { color: red; font-weight: bold; }
 
-.empty { text-align: center; color: #999; }
+.empty { text-align: center; color: #999; padding: 20px; }
+
+button:disabled { background: #ccc !important; cursor: not-allowed; }
 </style>
 </head>
 
@@ -121,17 +125,19 @@ function loadDrugCache() {
 }
 
 async function loadDrug() {
-  const res = await fetch(DRUG_API);
-  const data = await res.json();
+  try {
+    const res = await fetch(DRUG_API);
+    const data = await res.json();
 
-  drugData = data.map(d => ({
-    display: d[0],
-    search: normalize(d[0]),
-    price: d[1]
-  }));
+    drugData = data.map(d => ({
+      display: d[0],
+      search: normalize(d[0]),
+      price: d[1]
+    }));
 
-  localStorage.setItem("drugData", JSON.stringify(drugData));
-  updateStatus();
+    localStorage.setItem("drugData", JSON.stringify(drugData));
+    updateStatus();
+  } catch (e) { console.error("Load drug error", e); }
 }
 
 // ===== LOAD CUSTOMER =====
@@ -141,17 +147,19 @@ function loadCustomerCache() {
 }
 
 async function loadCustomer() {
-  const res = await fetch(CUSTOMER_API);
-  const data = await res.json();
+  try {
+    const res = await fetch(CUSTOMER_API);
+    const data = await res.json();
 
-  customerData = data.map(d => ({
-    name: d[0],
-    phone: d[1],
-    points: d[2]
-  }));
+    customerData = data.map(d => ({
+      name: d[0],
+      phone: String(d[1]),
+      points: Number(d[2])
+    }));
 
-  localStorage.setItem("customers", JSON.stringify(customerData));
-  updateStatus();
+    localStorage.setItem("customers", JSON.stringify(customerData));
+    updateStatus();
+  } catch (e) { console.error("Load customer error", e); }
 }
 
 // ===== SEARCH =====
@@ -162,23 +170,26 @@ input.addEventListener("input", () => {
 });
 
 function doSearch() {
-  if (currentTab === "drug") {
-    const q = normalize(input.value);
-    if (q.length < 2) return resultDiv.innerHTML = "";
+  const q = input.value.trim();
+  if (!q) return resultDiv.innerHTML = "";
 
-    const result = drugData.filter(d => d.search.includes(q)).slice(0, 30);
+  if (currentTab === "drug") {
+    const searchQ = normalize(q);
+    if (searchQ.length < 2) return resultDiv.innerHTML = "";
+
+    const result = drugData.filter(d => d.search.includes(searchQ)).slice(0, 30);
 
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
         <b>${d.display}</b><br>
         <span class="price">${Number(d.price).toLocaleString()}đ</span>
       </div>
-    `).join("") : `<div class="empty">Không tìm thấy</div>`;
+    `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
 
   } else {
-    const q = input.value.trim();
     if (q.length < 3) return resultDiv.innerHTML = "";
 
+    // Tìm kiếm trực tiếp trong biến customerData đã load sẵn
     let exact = [];
     let near = [];
 
@@ -196,33 +207,65 @@ function doSearch() {
         ⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm
         <br><br>
 
-        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm +" style="width:100%;padding:8px;margin-bottom:5px">
+        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm +" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px">
 
-        <button onclick="updatePoints('${d.phone}')"
-        style="width:100%;padding:10px;background:#2c7be5;color:white;border:none;border-radius:8px">
-        ➕ Cập nhật
+        <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')"
+        style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold">
+        ➕ Cập nhật điểm
         </button>
       </div>
-    `).join("") : `<div class="empty">Không tìm thấy</div>`;
+    `).join("") : `<div class="empty">Không tìm thấy khách hàng</div>`;
   }
 }
 
-// ===== UPDATE POINT =====
+// ===== UPDATE POINT (OPTIMIZED) =====
 async function updatePoints(phone) {
-  const val = parseInt(document.getElementById("i-"+phone).value);
-  if (!val) return alert("Nhập điểm");
+  const inputEl = document.getElementById("i-" + phone);
+  const displayEl = document.getElementById("p-" + phone);
+  const btnEl = document.getElementById("btn-" + phone);
+  const val = parseInt(inputEl.value);
 
-  await fetch(CUSTOMER_API, {
-    method: "POST",
-    body: JSON.stringify({ phone, points: val })
-  });
+  if (!val) return alert("Vui lòng nhập số điểm");
 
-  let el = document.getElementById("p-"+phone);
-  let cur = parseInt(el.innerText.replace(/\D/g,""));
-  el.innerText = (cur + val).toLocaleString();
+  // Lưu giá trị cũ để rollback nếu lỗi
+  const oldText = displayEl.innerText;
+  const oldPoints = parseInt(oldText.replace(/\D/g, ""));
+  const newPoints = oldPoints + val;
 
-  document.getElementById("i-"+phone).value = "";
-  alert("OK");
+  // 1. Cập nhật UI ngay lập tức (Optimistic UI)
+  displayEl.innerText = newPoints.toLocaleString();
+  inputEl.value = "";
+  btnEl.disabled = true;
+  btnEl.innerText = "Đang lưu...";
+
+  try {
+    // 2. Gửi request chạy ngầm (POST tới Apps Script)
+    // Sử dụng text/plain để tránh vấn đề CORS Preflight làm chậm request
+    await fetch(CUSTOMER_API, {
+      method: "POST",
+      mode: "no-cors", 
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ phone: phone, points: val })
+    });
+
+    // 3. Cập nhật dữ liệu vào biến local để tìm kiếm sau này vẫn thấy điểm mới
+    const idx = customerData.findIndex(c => c.phone === phone);
+    if (idx !== -1) {
+      customerData[idx].points = newPoints;
+      localStorage.setItem("customers", JSON.stringify(customerData));
+    }
+    
+    btnEl.disabled = false;
+    btnEl.innerText = "➕ Cập nhật điểm";
+    console.log("Cập nhật thành công cho " + phone);
+
+  } catch (error) {
+    // 4. Rollback nếu có lỗi mạng
+    alert("Lỗi kết nối! Không thể cập nhật điểm lên hệ thống.");
+    displayEl.innerText = oldText;
+    btnEl.disabled = false;
+    btnEl.innerText = "➕ Cập nhật điểm";
+  }
 }
 
 // ===== INIT =====
@@ -232,7 +275,8 @@ updateStatus();
 
 loadDrug();
 loadCustomer();
-setInterval(loadCustomer, 300000);
+// Tự động cập nhật ngầm dữ liệu khách hàng mỗi x phút
+setInterval(loadCustomer, 6000000);
 </script>
 
 </body>
