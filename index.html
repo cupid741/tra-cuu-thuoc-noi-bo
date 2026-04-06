@@ -34,9 +34,9 @@ input {
   padding: 14px;
   font-size: 18px;
   border-radius: 12px;
-  border: none;
+  border: 1px solid #ddd;
   margin-bottom: 10px;
-  box-sizing: border-box;
+  box-sizing: border-box; /* Đảm bảo input không tràn viền */
 }
 
 .item {
@@ -177,6 +177,7 @@ async function loadCustomer() {
     const res = await fetch(CUSTOMER_API);
     const data = await res.json();
 
+    // Mapping toàn bộ dữ liệu từ Google Sheets trả về
     customerData = data.map(d => ({
       name: d[0],
       phone: String(d[1]),
@@ -185,7 +186,7 @@ async function loadCustomer() {
 
     localStorage.setItem("customers", JSON.stringify(customerData));
     isDownloading = false;
-    updateStatus(); // Hiển thị "Sẵn sàng" khi xong
+    updateStatus(); 
   } catch (e) { 
     console.error("Load customer error", e);
     isDownloading = false;
@@ -218,6 +219,7 @@ function doSearch() {
     `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
 
   } else {
+    // Tìm kiếm khách hàng cực nhanh trên RAM
     if (q.length < 3) return resultDiv.innerHTML = "";
 
     let exact = [];
@@ -228,7 +230,7 @@ function doSearch() {
       else if (d.phone.includes(q)) near.push(d);
     }
 
-    const result = [...exact, ...near].slice(0, 20);
+    const result = [...exact, ...near].slice(0, 25);
 
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
@@ -237,10 +239,10 @@ function doSearch() {
         ⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm
         <br><br>
 
-        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm +" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px">
+        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm +" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box">
 
         <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')"
-        style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold">
+        style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">
         ➕ Cập nhật điểm
         </button>
       </div>
@@ -261,7 +263,7 @@ async function updatePoints(phone) {
   const oldPoints = parseInt(oldText.replace(/\D/g, ""));
   const newPoints = oldPoints + val;
 
-  // Optimistic UI
+  // Optimistic UI: Hiển thị ngay lập tức trước khi server phản hồi
   displayEl.innerText = newPoints.toLocaleString();
   inputEl.value = "";
   btnEl.disabled = true;
@@ -275,6 +277,7 @@ async function updatePoints(phone) {
       body: JSON.stringify({ phone: phone, points: val })
     });
 
+    // Cập nhật dữ liệu trong RAM và LocalStorage ngay lập tức
     const idx = customerData.findIndex(c => c.phone === phone);
     if (idx !== -1) {
       customerData[idx].points = newPoints;
@@ -286,7 +289,7 @@ async function updatePoints(phone) {
     updateStatus(); 
 
   } catch (error) {
-    alert("Lỗi kết nối!");
+    alert("Lỗi kết nối! Điểm sẽ được hoàn tác.");
     displayEl.innerText = oldText;
     btnEl.disabled = false;
     btnEl.innerText = "➕ Cập nhật điểm";
@@ -296,11 +299,12 @@ async function updatePoints(phone) {
 // ===== INIT =====
 loadDrugCache();
 loadCustomerCache();
-updateStatus(); // Hiển thị số lượng từ Cache ngay lập tức
+updateStatus(); 
 
 loadDrug();
-loadCustomer(); // Gọi API để cập nhật dữ liệu thực tế
+loadCustomer(); 
 
+// Tự động làm mới dữ liệu khách hàng mỗi 5 phút (300,000ms)
 setInterval(loadCustomer, 6000000);
 </script>
 
