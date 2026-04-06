@@ -5,14 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TRA CỨU HỆ THỐNG</title>
 
-<link rel="manifest" href="manifest.json">
-
 <style>
-body {
-  font-family: Arial;
-  margin: 0;
-  background: #f0f2f5;
-}
+body { font-family: Arial; margin: 0; background: #f0f2f5; }
 
 header {
   background: linear-gradient(135deg,#2c7be5,#1a5edb);
@@ -21,26 +15,19 @@ header {
   text-align: center;
 }
 
-/* TAB */
-.tabs {
-  display: flex;
-  background: #fff;
-}
+.tabs { display: flex; background: #fff; }
 .tab {
   flex: 1;
   padding: 12px;
   text-align: center;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
 }
 .tab.active {
   border-bottom: 2px solid #2c7be5;
   font-weight: bold;
 }
 
-.container {
-  padding: 15px;
-}
+.container { padding: 15px; }
 
 input {
   width: 100%;
@@ -49,7 +36,6 @@ input {
   border-radius: 12px;
   border: none;
   margin-bottom: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .item {
@@ -57,25 +43,11 @@ input {
   padding: 14px;
   margin-top: 10px;
   border-radius: 12px;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
 
-.price {
-  color: #e74c3c;
-  font-weight: bold;
-}
+.price { color: red; font-weight: bold; }
 
-#progress {
-  height: 3px;
-  background: #2c7be5;
-  width: 0%;
-}
-
-.empty {
-  text-align: center;
-  color: #999;
-  margin-top: 20px;
-}
+.empty { text-align: center; color: #999; }
 </style>
 </head>
 
@@ -87,11 +59,9 @@ input {
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('drug')">💊 Thuốc</div>
-  <div class="tab" onclick="switchTab('customer')">👤 Khách hàng</div>
+  <div class="tab active" onclick="switchTab(event,'drug')">💊 Thuốc</div>
+  <div class="tab" onclick="switchTab(event,'customer')">👤 Khách hàng</div>
 </div>
-
-<div id="progress"></div>
 
 <div class="container">
   <input id="search" placeholder="Nhập tìm kiếm...">
@@ -100,158 +70,169 @@ input {
 </div>
 
 <script>
-// ================= TAB =================
-let currentTab = "drug";
+// ===== CONFIG =====
+const DRUG_API = "data.json";
+const CUSTOMER_API = "https://script.google.com/macros/s/AKfycbzYp-h74OC4Xx8uCulrylLdtz2rEX4Z9LiyTcnu1lrfxqjUf_X5If0AXgwcf1sqA8Gm/exec";
 
-function switchTab(tab) {
+// ===== STATE =====
+let currentTab = "drug";
+let drugData = [];
+let customerData = [];
+
+// ===== ELEMENT =====
+const input = document.getElementById("search");
+const resultDiv = document.getElementById("result");
+const statusDiv = document.getElementById("status");
+
+// ===== TAB =====
+function switchTab(e, tab) {
   currentTab = tab;
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  event.target.classList.add("active");
+  e.target.classList.add("active");
 
-  document.getElementById("search").value = "";
-  document.getElementById("result").innerHTML = "";
+  input.value = "";
+  resultDiv.innerHTML = "";
 
-  if (tab === "drug") {
+  updateStatus();
+}
+
+// ===== STATUS =====
+function updateStatus() {
+  if (currentTab === "drug") {
     statusDiv.innerHTML = "Sẵn sàng (" + drugData.length + " thuốc)";
   } else {
     statusDiv.innerHTML = "Sẵn sàng (" + customerData.length + " khách)";
   }
 }
 
-// ================= COMMON =================
+// ===== NORMALIZE =====
 function normalize(str) {
   return (str || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
     .trim();
 }
 
-const input = document.getElementById("search");
-const resultDiv = document.getElementById("result");
-const statusDiv = document.getElementById("status");
-const progress = document.getElementById("progress");
-
-// ================= DRUG (GIỮ NGUYÊN) =================
-const DRUG_API = "data.json";
-let drugData = [];
-
+// ===== LOAD DRUG =====
 function loadDrugCache() {
-  const cache = localStorage.getItem("drugData");
-  if (cache) drugData = JSON.parse(cache);
+  const c = localStorage.getItem("drugData");
+  if (c) drugData = JSON.parse(c);
 }
 
 async function loadDrug() {
-  try {
-    const res = await fetch(DRUG_API);
-    const data = await res.json();
+  const res = await fetch(DRUG_API);
+  const data = await res.json();
 
-    drugData = data.map(d => ({
-      display: d[0],
-      search: normalize(d[0]),
-      price: d[1]
-    }));
+  drugData = data.map(d => ({
+    display: d[0],
+    search: normalize(d[0]),
+    price: d[1]
+  }));
 
-    localStorage.setItem("drugData", JSON.stringify(drugData));
-    if (currentTab === "drug")
-      statusDiv.innerHTML = "Sẵn sàng (" + drugData.length + " thuốc)";
-  } catch {}
+  localStorage.setItem("drugData", JSON.stringify(drugData));
+  updateStatus();
 }
 
-// ================= CUSTOMER =================
-const CUSTOMER_API = "https://script.google.com/macros/s/AKfycbzYp-h74OC4Xx8uCulrylLdtz2rEX4Z9LiyTcnu1lrfxqjUf_X5If0AXgwcf1sqA8Gm/exec";
-
-let customerData = [];
-
+// ===== LOAD CUSTOMER =====
 function loadCustomerCache() {
-  const cache = localStorage.getItem("customers");
-  if (cache) customerData = JSON.parse(cache);
+  const c = localStorage.getItem("customers");
+  if (c) customerData = JSON.parse(c);
 }
 
 async function loadCustomer() {
-  try {
-    const res = await fetch(CUSTOMER_API);
-    const data = await res.json();
+  const res = await fetch(CUSTOMER_API);
+  const data = await res.json();
 
-    customerData = data.map(d => ({
-      name: d[0],
-      phone: d[1],
-      points: d[2],
-      search: normalize(d[0] + " " + d[1])
-    }));
+  customerData = data.map(d => ({
+    name: d[0],
+    phone: d[1],
+    points: d[2]
+  }));
 
-    localStorage.setItem("customers", JSON.stringify(customerData));
-
-    if (currentTab === "customer")
-      statusDiv.innerHTML = "Sẵn sàng (" + customerData.length + " khách)";
-  } catch {}
+  localStorage.setItem("customers", JSON.stringify(customerData));
+  updateStatus();
 }
 
-// ================= SEARCH =================
+// ===== SEARCH =====
 let debounce;
-
 input.addEventListener("input", () => {
   clearTimeout(debounce);
   debounce = setTimeout(doSearch, 150);
 });
 
 function doSearch() {
-  const q = normalize(input.value);
-  if (q.length < 2) {
-    resultDiv.innerHTML = "";
-    return;
-  }
-
-  const keywords = q.split(" ");
-  let source = currentTab === "drug" ? drugData : customerData;
-
-  const result = [];
-
-  for (let item of source) {
-    let ok = keywords.every(k => item.search.includes(k));
-    if (ok) {
-      result.push(item);
-      if (result.length >= 30) break;
-    }
-  }
-
-  if (!result.length) {
-    resultDiv.innerHTML = `<div class="empty">Không tìm thấy</div>`;
-    return;
-  }
-
   if (currentTab === "drug") {
-    resultDiv.innerHTML = result.map(d => `
+    const q = normalize(input.value);
+    if (q.length < 2) return resultDiv.innerHTML = "";
+
+    const result = drugData.filter(d => d.search.includes(q)).slice(0, 30);
+
+    resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
         <b>${d.display}</b><br>
         <span class="price">${Number(d.price).toLocaleString()}đ</span>
       </div>
-    `).join("");
+    `).join("") : `<div class="empty">Không tìm thấy</div>`;
+
   } else {
-    resultDiv.innerHTML = result.map(d => `
+    const q = input.value.trim();
+    if (q.length < 3) return resultDiv.innerHTML = "";
+
+    let exact = [];
+    let near = [];
+
+    for (let d of customerData) {
+      if (d.phone === q) exact.push(d);
+      else if (d.phone.includes(q)) near.push(d);
+    }
+
+    const result = [...exact, ...near].slice(0, 20);
+
+    resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
         <b>${d.name}</b><br>
         📞 ${d.phone}<br>
-        ⭐ ${Number(d.points).toLocaleString()} điểm
+        ⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm
+        <br><br>
+
+        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm +" style="width:100%;padding:8px;margin-bottom:5px">
+
+        <button onclick="updatePoints('${d.phone}')"
+        style="width:100%;padding:10px;background:#2c7be5;color:white;border:none;border-radius:8px">
+        ➕ Cập nhật
+        </button>
       </div>
-    `).join("");
+    `).join("") : `<div class="empty">Không tìm thấy</div>`;
   }
 }
 
-// ================= INIT =================
+// ===== UPDATE POINT =====
+async function updatePoints(phone) {
+  const val = parseInt(document.getElementById("i-"+phone).value);
+  if (!val) return alert("Nhập điểm");
+
+  await fetch(CUSTOMER_API, {
+    method: "POST",
+    body: JSON.stringify({ phone, points: val })
+  });
+
+  let el = document.getElementById("p-"+phone);
+  let cur = parseInt(el.innerText.replace(/\D/g,""));
+  el.innerText = (cur + val).toLocaleString();
+
+  document.getElementById("i-"+phone).value = "";
+  alert("OK");
+}
+
+// ===== INIT =====
 loadDrugCache();
 loadCustomerCache();
+updateStatus();
 
 loadDrug();
 loadCustomer();
-
 setInterval(loadCustomer, 300000);
-
-// PWA
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
 </script>
 
 </body>
