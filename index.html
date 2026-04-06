@@ -51,6 +51,19 @@ input {
 
 .empty { text-align: center; color: #999; padding: 20px; }
 
+/* Hiệu ứng loading cho status */
+.loading-text {
+  color: #2c7be5;
+  font-weight: bold;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
 button:disabled { background: #ccc !important; cursor: not-allowed; }
 </style>
 </head>
@@ -69,7 +82,7 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 
 <div class="container">
   <input id="search" placeholder="Nhập tìm kiếm...">
-  <div id="status"></div>
+  <div id="status">Đang khởi tạo...</div>
   <div id="result"></div>
 </div>
 
@@ -82,6 +95,7 @@ const CUSTOMER_API = "https://script.google.com/macros/s/AKfycbzYp-h74OC4Xx8uCul
 let currentTab = "drug";
 let drugData = [];
 let customerData = [];
+let isDownloading = false;
 
 // ===== ELEMENT =====
 const input = document.getElementById("search");
@@ -100,12 +114,15 @@ function switchTab(e, tab) {
   updateStatus();
 }
 
-// ===== STATUS =====
-function updateStatus() {
-  if (currentTab === "drug") {
-    statusDiv.innerHTML = "Sẵn sàng (" + drugData.length + " thuốc)";
+// ===== STATUS (CẬP NHẬT TIẾN TRÌNH) =====
+function updateStatus(msg) {
+  const count = currentTab === "drug" ? drugData.length : customerData.length;
+  const label = currentTab === "drug" ? "thuốc" : "khách";
+  
+  if (msg) {
+    statusDiv.innerHTML = `<span class="loading-text">${msg}</span> (${count} ${label})`;
   } else {
-    statusDiv.innerHTML = "Sẵn sàng (" + customerData.length + " khách)";
+    statusDiv.innerHTML = `Sẵn sàng (${count} ${label})`;
   }
 }
 
@@ -125,6 +142,7 @@ function loadDrugCache() {
 }
 
 async function loadDrug() {
+  updateStatus("Đang tải thuốc...");
   try {
     const res = await fetch(DRUG_API);
     const data = await res.json();
@@ -137,16 +155,24 @@ async function loadDrug() {
 
     localStorage.setItem("drugData", JSON.stringify(drugData));
     updateStatus();
-  } catch (e) { console.error("Load drug error", e); }
+  } catch (e) { 
+    console.error("Load drug error", e);
+    updateStatus("Lỗi tải thuốc!");
+  }
 }
 
-// ===== LOAD CUSTOMER =====
+// ===== LOAD CUSTOMER (CÓ HIỂN THỊ TIẾN TRÌNH) =====
 function loadCustomerCache() {
   const c = localStorage.getItem("customers");
   if (c) customerData = JSON.parse(c);
 }
 
 async function loadCustomer() {
+  if (isDownloading) return;
+  isDownloading = true;
+  
+  updateStatus("Đang đồng bộ...");
+  
   try {
     const res = await fetch(CUSTOMER_API);
     const data = await res.json();
@@ -158,8 +184,13 @@ async function loadCustomer() {
     }));
 
     localStorage.setItem("customers", JSON.stringify(customerData));
-    updateStatus();
-  } catch (e) { console.error("Load customer error", e); }
+    isDownloading = false;
+    updateStatus(); // Hiển thị "Sẵn sàng" khi xong
+  } catch (e) { 
+    console.error("Load customer error", e);
+    isDownloading = false;
+    updateStatus("Lỗi đồng bộ!");
+  }
 }
 
 // ===== SEARCH =====
@@ -189,7 +220,6 @@ function doSearch() {
   } else {
     if (q.length < 3) return resultDiv.innerHTML = "";
 
-    // Tìm kiếm trực tiếp trong biến customerData đã load sẵn
     let exact = [];
     let near = [];
 
@@ -218,7 +248,7 @@ function doSearch() {
   }
 }
 
-// ===== UPDATE POINT (OPTIMIZED) =====
+// ===== UPDATE POINT =====
 async function updatePoints(phone) {
   const inputEl = document.getElementById("i-" + phone);
   const displayEl = document.getElementById("p-" + phone);
@@ -227,20 +257,17 @@ async function updatePoints(phone) {
 
   if (!val) return alert("Vui lòng nhập số điểm");
 
-  // Lưu giá trị cũ để rollback nếu lỗi
   const oldText = displayEl.innerText;
   const oldPoints = parseInt(oldText.replace(/\D/g, ""));
   const newPoints = oldPoints + val;
 
-  // 1. Cập nhật UI ngay lập tức (Optimistic UI)
+  // Optimistic UI
   displayEl.innerText = newPoints.toLocaleString();
   inputEl.value = "";
   btnEl.disabled = true;
   btnEl.innerText = "Đang lưu...";
 
   try {
-    // 2. Gửi request chạy ngầm (POST tới Apps Script)
-    // Sử dụng text/plain để tránh vấn đề CORS Preflight làm chậm request
     await fetch(CUSTOMER_API, {
       method: "POST",
       mode: "no-cors", 
@@ -248,7 +275,6 @@ async function updatePoints(phone) {
       body: JSON.stringify({ phone: phone, points: val })
     });
 
-    // 3. Cập nhật dữ liệu vào biến local để tìm kiếm sau này vẫn thấy điểm mới
     const idx = customerData.findIndex(c => c.phone === phone);
     if (idx !== -1) {
       customerData[idx].points = newPoints;
@@ -257,11 +283,10 @@ async function updatePoints(phone) {
     
     btnEl.disabled = false;
     btnEl.innerText = "➕ Cập nhật điểm";
-    console.log("Cập nhật thành công cho " + phone);
+    updateStatus(); 
 
   } catch (error) {
-    // 4. Rollback nếu có lỗi mạng
-    alert("Lỗi kết nối! Không thể cập nhật điểm lên hệ thống.");
+    alert("Lỗi kết nối!");
     displayEl.innerText = oldText;
     btnEl.disabled = false;
     btnEl.innerText = "➕ Cập nhật điểm";
@@ -271,11 +296,11 @@ async function updatePoints(phone) {
 // ===== INIT =====
 loadDrugCache();
 loadCustomerCache();
-updateStatus();
+updateStatus(); // Hiển thị số lượng từ Cache ngay lập tức
 
 loadDrug();
-loadCustomer();
-// Tự động cập nhật ngầm dữ liệu khách hàng mỗi x phút
+loadCustomer(); // Gọi API để cập nhật dữ liệu thực tế
+
 setInterval(loadCustomer, 6000000);
 </script>
 
