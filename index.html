@@ -36,7 +36,7 @@ input {
   border-radius: 12px;
   border: 1px solid #ddd;
   margin-bottom: 10px;
-  box-sizing: border-box; /* Đảm bảo input không tràn viền */
+  box-sizing: border-box; 
 }
 
 .item {
@@ -51,7 +51,6 @@ input {
 
 .empty { text-align: center; color: #999; padding: 20px; }
 
-/* Hiệu ứng loading cho status */
 .loading-text {
   color: #2c7be5;
   font-weight: bold;
@@ -89,6 +88,7 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 <script>
 // ===== CONFIG =====
 const DRUG_API = "data.json";
+// ID TRIỂN KHAI MỚI NHẤT CỦA BẠN
 const CUSTOMER_API = "https://script.google.com/macros/s/AKfycbwzfNP7TJM3zbH_WHe_e8YYmYgSK4DNXTjKcKfl6I7NvgNWXXAg01OMrqAv6Wrvlcja/exec";
 
 // ===== STATE =====
@@ -107,10 +107,8 @@ function switchTab(e, tab) {
   currentTab = tab;
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   e.target.classList.add("active");
-
   input.value = "";
   resultDiv.innerHTML = "";
-
   updateStatus();
 }
 
@@ -146,22 +144,19 @@ async function loadDrug() {
   try {
     const res = await fetch(DRUG_API);
     const data = await res.json();
-
     drugData = data.map(d => ({
       display: d[0],
       search: normalize(d[0]),
       price: d[1]
     }));
-
     localStorage.setItem("drugData", JSON.stringify(drugData));
     updateStatus();
   } catch (e) { 
-    console.error("Load drug error", e);
     updateStatus("Lỗi tải thuốc!");
   }
 }
 
-// ===== LOAD CUSTOMER (CÓ HIỂN THỊ TIẾN TRÌNH) =====
+// ===== LOAD CUSTOMER (FIX LỖI KHÔNG CẬP NHẬT SỐ LƯỢNG) =====
 function loadCustomerCache() {
   const c = localStorage.getItem("customers");
   if (c) customerData = JSON.parse(c);
@@ -170,25 +165,26 @@ function loadCustomerCache() {
 async function loadCustomer() {
   if (isDownloading) return;
   isDownloading = true;
-  
   updateStatus("Đang đồng bộ...");
   
   try {
     const res = await fetch(CUSTOMER_API);
     const data = await res.json();
 
-    // Mapping toàn bộ dữ liệu từ Google Sheets trả về
+    // Cập nhật mảng dữ liệu trong RAM
     customerData = data.map(d => ({
       name: d[0],
       phone: String(d[1]),
       points: Number(d[2])
     }));
 
+    // Ghi đè dữ liệu mới vào LocalStorage
     localStorage.setItem("customers", JSON.stringify(customerData));
     isDownloading = false;
+    
+    // GỌI LẠI HÀM NÀY ĐỂ CẬP NHẬT CON SỐ TRÊN MÀN HÌNH NGAY LẬP TỨC
     updateStatus(); 
   } catch (e) { 
-    console.error("Load customer error", e);
     isDownloading = false;
     updateStatus("Lỗi đồng bộ!");
   }
@@ -207,44 +203,25 @@ function doSearch() {
 
   if (currentTab === "drug") {
     const searchQ = normalize(q);
-    if (searchQ.length < 2) return resultDiv.innerHTML = "";
-
+    if (searchQ.length < 2) return;
     const result = drugData.filter(d => d.search.includes(searchQ)).slice(0, 30);
-
     resultDiv.innerHTML = result.length ? result.map(d => `
-      <div class="item">
-        <b>${d.display}</b><br>
-        <span class="price">${Number(d.price).toLocaleString()}đ</span>
-      </div>
+      <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>
     `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
-
   } else {
-    // Tìm kiếm khách hàng cực nhanh trên RAM
-    if (q.length < 3) return resultDiv.innerHTML = "";
-
+    if (q.length < 3) return;
     let exact = [];
     let near = [];
-
     for (let d of customerData) {
       if (d.phone === q) exact.push(d);
       else if (d.phone.includes(q)) near.push(d);
     }
-
-    const result = [...exact, ...near].slice(0, 25);
-
+    const result = [...exact, ...near].slice(0, 50); // Tăng hiển thị lên 50 người
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
-        <b>${d.name}</b><br>
-        📞 ${d.phone}<br>
-        ⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm
-        <br><br>
-
+        <b>${d.name}</b><br>📞 ${d.phone}<br>⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm<br><br>
         <input type="number" id="i-${d.phone}" placeholder="Nhập điểm +" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box">
-
-        <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')"
-        style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">
-        ➕ Cập nhật điểm
-        </button>
+        <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')" style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">➕ Cập nhật điểm</button>
       </div>
     `).join("") : `<div class="empty">Không tìm thấy khách hàng</div>`;
   }
@@ -256,14 +233,12 @@ async function updatePoints(phone) {
   const displayEl = document.getElementById("p-" + phone);
   const btnEl = document.getElementById("btn-" + phone);
   const val = parseInt(inputEl.value);
-
   if (!val) return alert("Vui lòng nhập số điểm");
 
   const oldText = displayEl.innerText;
   const oldPoints = parseInt(oldText.replace(/\D/g, ""));
   const newPoints = oldPoints + val;
 
-  // Optimistic UI: Hiển thị ngay lập tức trước khi server phản hồi
   displayEl.innerText = newPoints.toLocaleString();
   inputEl.value = "";
   btnEl.disabled = true;
@@ -276,20 +251,15 @@ async function updatePoints(phone) {
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({ phone: phone, points: val })
     });
-
-    // Cập nhật dữ liệu trong RAM và LocalStorage ngay lập tức
     const idx = customerData.findIndex(c => c.phone === phone);
     if (idx !== -1) {
       customerData[idx].points = newPoints;
       localStorage.setItem("customers", JSON.stringify(customerData));
     }
-    
     btnEl.disabled = false;
     btnEl.innerText = "➕ Cập nhật điểm";
-    updateStatus(); 
-
   } catch (error) {
-    alert("Lỗi kết nối! Điểm sẽ được hoàn tác.");
+    alert("Lỗi kết nối!");
     displayEl.innerText = oldText;
     btnEl.disabled = false;
     btnEl.innerText = "➕ Cập nhật điểm";
@@ -304,9 +274,8 @@ updateStatus();
 loadDrug();
 loadCustomer(); 
 
-// Tự động làm mới dữ liệu khách hàng mỗi 5 phút (300,000ms)
-setInterval(loadCustomer, 3000000);
+// Làm mới mỗi 5 phút (300.000ms)
+setInterval(loadCustomer, 300000);
 </script>
-
 </body>
 </html>
