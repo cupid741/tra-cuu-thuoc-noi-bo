@@ -77,6 +77,7 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 <div class="tabs">
   <div class="tab active" onclick="switchTab(event,'drug')">💊 Thuốc</div>
   <div class="tab" onclick="switchTab(event,'customer')">👤 Khách hàng</div>
+  <div class="tab" onclick="switchTab(event,'invoice')">🧾 Hóa đơn</div>
 </div>
 
 <div class="container">
@@ -88,13 +89,13 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 <script>
 // ===== CONFIG =====
 const DRUG_API = "data.json";
-// ID TRIỂN KHAI MỚI NHẤT CỦA BẠN
 const CUSTOMER_API = "https://script.google.com/macros/s/AKfycbwzfNP7TJM3zbH_WHe_e8YYmYgSK4DNXTjKcKfl6I7NvgNWXXAg01OMrqAv6Wrvlcja/exec";
 
 // ===== STATE =====
 let currentTab = "drug";
 let drugData = [];
 let customerData = [];
+let invoiceData = [];
 let isDownloading = false;
 
 // ===== ELEMENT =====
@@ -112,11 +113,18 @@ function switchTab(e, tab) {
   updateStatus();
 }
 
-// ===== STATUS (CẬP NHẬT TIẾN TRÌNH) =====
+// ===== STATUS =====
 function updateStatus(msg) {
-  const count = currentTab === "drug" ? drugData.length : customerData.length;
-  const label = currentTab === "drug" ? "thuốc" : "khách";
-  
+  let count = 0, label = "";
+
+  if (currentTab === "drug") {
+    count = drugData.length; label = "thuốc";
+  } else if (currentTab === "customer") {
+    count = customerData.length; label = "khách";
+  } else {
+    count = invoiceData.length; label = "hóa đơn";
+  }
+
   if (msg) {
     statusDiv.innerHTML = `<span class="loading-text">${msg}</span> (${count} ${label})`;
   } else {
@@ -124,13 +132,23 @@ function updateStatus(msg) {
   }
 }
 
+// ===== LOAD INVOICE =====
+async function loadInvoice() {
+  updateStatus("Đang tải hóa đơn...");
+  try {
+    const files = Array.from({length: 6}, (_, i) => `data${i+1}.json`);
+    const responses = await Promise.all(files.map(f => fetch(f)));
+    const jsons = await Promise.all(responses.map(r => r.json()));
+    invoiceData = jsons.flat();
+    updateStatus();
+  } catch (e) {
+    updateStatus("Lỗi tải hóa đơn!");
+  }
+}
+
 // ===== NORMALIZE =====
 function normalize(str) {
-  return (str || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
+  return (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 // ===== LOAD DRUG =====
@@ -156,7 +174,7 @@ async function loadDrug() {
   }
 }
 
-// ===== LOAD CUSTOMER (FIX LỖI KHÔNG CẬP NHẬT SỐ LƯỢNG) =====
+// ===== LOAD CUSTOMER =====
 function loadCustomerCache() {
   const c = localStorage.getItem("customers");
   if (c) customerData = JSON.parse(c);
@@ -171,18 +189,14 @@ async function loadCustomer() {
     const res = await fetch(CUSTOMER_API);
     const data = await res.json();
 
-    // Cập nhật mảng dữ liệu trong RAM
     customerData = data.map(d => ({
       name: d[0],
       phone: String(d[1]),
       points: Number(d[2])
     }));
 
-    // Ghi đè dữ liệu mới vào LocalStorage
     localStorage.setItem("customers", JSON.stringify(customerData));
     isDownloading = false;
-    
-    // GỌI LẠI HÀM NÀY ĐỂ CẬP NHẬT CON SỐ TRÊN MÀN HÌNH NGAY LẬP TỨC
     updateStatus(); 
   } catch (e) { 
     isDownloading = false;
@@ -208,7 +222,9 @@ function doSearch() {
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>
     `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
-  } else {
+  }
+
+  else if (currentTab === "customer") {
     if (q.length < 3) return;
     let exact = [];
     let near = [];
@@ -216,53 +232,64 @@ function doSearch() {
       if (d.phone === q) exact.push(d);
       else if (d.phone.includes(q)) near.push(d);
     }
-    const result = [...exact, ...near].slice(0, 50); // Tăng hiển thị lên 50 người
+    const result = [...exact, ...near].slice(0, 50);
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
-        <b>${d.name}</b><br>📞 ${d.phone}<br>⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm<br><br>
-        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm +" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box">
-        <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')" style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">➕ Cập nhật điểm</button>
+        <b>${d.name}</b><br>📞 ${d.phone}<br>⭐ ${Number(d.points).toLocaleString()} điểm
       </div>
     `).join("") : `<div class="empty">Không tìm thấy khách hàng</div>`;
   }
-}
 
-// ===== UPDATE POINT =====
-async function updatePoints(phone) {
-  const inputEl = document.getElementById("i-" + phone);
-  const displayEl = document.getElementById("p-" + phone);
-  const btnEl = document.getElementById("btn-" + phone);
-  const val = parseInt(inputEl.value);
-  if (!val) return alert("Vui lòng nhập số điểm");
+  else if (currentTab === "invoice") {
+    if (q.length < 3) return;
 
-  const oldText = displayEl.innerText;
-  const oldPoints = parseInt(oldText.replace(/\D/g, ""));
-  const newPoints = oldPoints + val;
+    const filtered = invoiceData.filter(d => String(d["Điện thoại"]).includes(q));
 
-  displayEl.innerText = newPoints.toLocaleString();
-  inputEl.value = "";
-  btnEl.disabled = true;
-  btnEl.innerText = "Đang lưu...";
-
-  try {
-    await fetch(CUSTOMER_API, {
-      method: "POST",
-      mode: "no-cors", 
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ phone: phone, points: val })
-    });
-    const idx = customerData.findIndex(c => c.phone === phone);
-    if (idx !== -1) {
-      customerData[idx].points = newPoints;
-      localStorage.setItem("customers", JSON.stringify(customerData));
+    if (!filtered.length) {
+      resultDiv.innerHTML = `<div class="empty">Không tìm thấy hóa đơn</div>`;
+      return;
     }
-    btnEl.disabled = false;
-    btnEl.innerText = "➕ Cập nhật điểm";
-  } catch (error) {
-    alert("Lỗi kết nối!");
-    displayEl.innerText = oldText;
-    btnEl.disabled = false;
-    btnEl.innerText = "➕ Cập nhật điểm";
+
+    const groups = {};
+
+    filtered.forEach(d => {
+      const key = `${d["Thời gian"]}|${d["Tên khách hàng"]}|${d["Điện thoại"]}`;
+
+      if (!groups[key]) {
+        groups[key] = {
+          time: d["Thời gian"],
+          name: d["Tên khách hàng"],
+          phone: d["Điện thoại"],
+          items: [],
+          total: d["Tổng tiền hàng"] || 0
+        };
+      }
+
+      groups[key].items.push({
+        product: d["Tên hàng"],
+        unit: d["ĐVT"],
+        qty: d["Số lượng"],
+        price: d["Đơn giá"],
+        amount: d["Thành tiền"]
+      });
+    });
+
+    resultDiv.innerHTML = Object.values(groups).map(g => `
+      <div class="item">
+        <b>🕒 ${g.time}</b><br>
+        👤 ${g.name}<br>
+        📞 ${g.phone}<br><br>
+
+        ${g.items.map(i => `
+          • ${i.product} (${i.unit})<br>
+          SL: ${i.qty} | Giá: ${Number(i.price).toLocaleString()}đ<br>
+          Thành tiền: <b>${Number(i.amount).toLocaleString()}đ</b><br><br>
+        `).join("")}
+
+        <hr>
+        <b>💰 Tổng: ${Number(g.total).toLocaleString()}đ</b>
+      </div>
+    `).join("");
   }
 }
 
@@ -272,9 +299,9 @@ loadCustomerCache();
 updateStatus(); 
 
 loadDrug();
-loadCustomer(); 
+loadCustomer();
+loadInvoice();
 
-// Làm mới mỗi 5 phút (300.000ms)
 setInterval(loadCustomer, 300000);
 </script>
 </body>
