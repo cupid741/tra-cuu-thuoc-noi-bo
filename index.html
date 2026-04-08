@@ -81,7 +81,7 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 </div>
 
 <div class="container">
-  <input id="search" placeholder="Nhập tìm kiếm...">
+  <input id="search" placeholder="Nhập tìm kiếm... (Tên thuốc)">
   <div id="status">Đang khởi tạo...</div>
   <div id="result"></div>
 </div>
@@ -110,6 +110,16 @@ function switchTab(e, tab) {
   e.target.classList.add("active");
   input.value = "";
   resultDiv.innerHTML = "";
+  
+  // Cập nhật placeholder theo tab
+  if (tab === 'drug') {
+    input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
+  } else if (tab === 'customer') {
+    input.placeholder = "Nhập tìm kiếm... (Số điện thoại)";
+  } else if (tab === 'invoice') {
+    input.placeholder = "Nhập tìm kiếm... (Số điện thoại)";
+  }
+  
   updateStatus();
 }
 
@@ -387,6 +397,9 @@ function doSearch() {
 loadDrugCache();
 loadCustomerCache();
 updateStatus(); 
+
+// Đặt placeholder ban đầu (trùng với tab mặc định 'drug')
+input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
 
 loadDrug();
 loadCustomer();
