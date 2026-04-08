@@ -204,6 +204,75 @@ async function loadCustomer() {
   }
 }
 
+// ===== HÀM PHÂN TÍCH THỜI GIAN (để sắp xếp ngày gần nhất) =====
+function parseTime(timeStr) {
+  if (!timeStr) return 0;
+  
+  // Hỗ trợ định dạng "DD/MM/YYYY HH:MM:SS" hoặc "DD/MM/YYYY HH:MM"
+  const parts = timeStr.split(' ');
+  const datePart = parts[0];
+  const timePart = parts[1] || '00:00:00';
+  
+  const dateSegments = datePart.includes('/') ? datePart.split('/') : datePart.split('-');
+  if (dateSegments.length === 3) {
+    const day = parseInt(dateSegments[0], 10);
+    const month = parseInt(dateSegments[1], 10) - 1;
+    const year = parseInt(dateSegments[2], 10);
+    
+    const timeSegments = timePart.split(':');
+    const hour = parseInt(timeSegments[0], 10) || 0;
+    const minute = parseInt(timeSegments[1], 10) || 0;
+    const second = parseInt(timeSegments[2], 10) || 0;
+    
+    const date = new Date(year, month, day, hour, minute, second);
+    return isNaN(date) ? 0 : date.getTime();
+  }
+  
+  // Fallback: thử parse trực tiếp (ISO, ...)
+  const d = new Date(timeStr);
+  return isNaN(d) ? 0 : d.getTime();
+}
+
+// ===== CẬP NHẬT ĐIỂM KHÁCH HÀNG =====
+function updatePoints(phone) {
+  const inputEl = document.getElementById(`i-${phone}`);
+  const pointEl = document.getElementById(`p-${phone}`);
+  
+  if (!inputEl || !pointEl) return;
+  
+  let delta = parseInt(inputEl.value.trim(), 10);
+  if (isNaN(delta)) {
+    alert("Vui lòng nhập số điểm hợp lệ (có thể âm hoặc dương)");
+    return;
+  }
+  
+  // Tìm khách hàng trong mảng
+  const customer = customerData.find(c => c.phone === phone);
+  if (!customer) {
+    alert("Không tìm thấy khách hàng");
+    return;
+  }
+  
+  // Cập nhật điểm mới (không cho điểm âm)
+  const newPoints = Math.max(0, customer.points + delta);
+  customer.points = newPoints;
+  
+  // Cập nhật giao diện
+  pointEl.textContent = newPoints.toLocaleString();
+  
+  // Lưu vào localStorage
+  localStorage.setItem("customers", JSON.stringify(customerData));
+  
+  // (Tùy chọn) Gửi cập nhật lên server qua API nếu có
+  // Ví dụ: fetch(CUSTOMER_UPDATE_API, { method: 'POST', body: JSON.stringify({ phone, points: newPoints }) });
+  
+  // Xóa input
+  inputEl.value = "";
+  
+  // Thông báo nhẹ
+  alert(`Đã cập nhật điểm cho ${customer.name}: ${delta > 0 ? '+' : ''}${delta} điểm. Tổng: ${newPoints.toLocaleString()} điểm`);
+}
+
 // ===== SEARCH =====
 let debounce;
 input.addEventListener("input", () => {
@@ -226,16 +295,33 @@ function doSearch() {
 
   else if (currentTab === "customer") {
     if (q.length < 3) return;
+
     let exact = [];
     let near = [];
+
     for (let d of customerData) {
       if (d.phone === q) exact.push(d);
       else if (d.phone.includes(q)) near.push(d);
     }
+
     const result = [...exact, ...near].slice(0, 50);
+
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
-        <b>${d.name}</b><br>📞 ${d.phone}<br>⭐ ${Number(d.points).toLocaleString()} điểm
+        <b>${d.name}</b><br>
+        📞 ${d.phone}<br>
+        ⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm<br><br>
+
+        <input type="number"
+          id="i-${d.phone}"
+          placeholder="Nhập điểm (+ / -)"
+          style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px">
+
+        <button id="btn-${d.phone}"
+          onclick="updatePoints('${d.phone}')"
+          style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">
+          ➕ Cập nhật điểm
+        </button>
       </div>
     `).join("") : `<div class="empty">Không tìm thấy khách hàng</div>`;
   }
@@ -274,7 +360,11 @@ function doSearch() {
       });
     });
 
-    resultDiv.innerHTML = Object.values(groups).map(g => `
+    // Chuyển object groups thành mảng và sắp xếp theo thời gian giảm dần (mới nhất trước)
+    const groupsArray = Object.values(groups);
+    groupsArray.sort((a, b) => parseTime(b.time) - parseTime(a.time));
+
+    resultDiv.innerHTML = groupsArray.map(g => `
       <div class="item">
         <b>🕒 ${g.time}</b><br>
         👤 ${g.name}<br>
