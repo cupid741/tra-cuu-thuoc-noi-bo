@@ -265,10 +265,11 @@ function parseTime(timeStr) {
   return isNaN(d) ? 0 : d.getTime();
 }
 
-// ===== CẬP NHẬT ĐIỂM KHÁCH HÀNG =====
-function updatePoints(phone) {
+// ===== CẬP NHẬT ĐIỂM KHÁCH HÀNG (ĐÃ SỬA ĐỂ GỬI POST LÊN GOOGLE SHEET) =====
+async function updatePoints(phone) {
   const inputEl = document.getElementById(`i-${phone}`);
   const pointEl = document.getElementById(`p-${phone}`);
+  const btnEl = document.getElementById(`btn-${phone}`);
   
   if (!inputEl || !pointEl) return;
   
@@ -285,24 +286,59 @@ function updatePoints(phone) {
     return;
   }
   
-  // Cập nhật điểm mới (không cho điểm âm)
-  const newPoints = Math.max(0, customer.points + delta);
-  customer.points = newPoints;
+  const oldPoints = customer.points;
+  const newPoints = Math.max(0, oldPoints + delta);
   
-  // Cập nhật giao diện
+  // Lưu tạm trạng thái cũ để hoàn tác nếu lỗi
+  const oldDisplayText = pointEl.textContent;
+  const oldBtnText = btnEl ? btnEl.innerText : "";
+  
+  // Cập nhật giao diện ngay để UX mượt
   pointEl.textContent = newPoints.toLocaleString();
-  
-  // Lưu vào localStorage
-  localStorage.setItem("customers", JSON.stringify(customerData));
-  
-  // (Tùy chọn) Gửi cập nhật lên server qua API nếu có
-  // Ví dụ: fetch(CUSTOMER_UPDATE_API, { method: 'POST', body: JSON.stringify({ phone, points: newPoints }) });
-  
-  // Xóa input
   inputEl.value = "";
+  if (btnEl) {
+    btnEl.disabled = true;
+    btnEl.innerText = "Đang lưu...";
+  }
   
-  // Thông báo nhẹ
-  alert(`Đã cập nhật điểm cho ${customer.name}: ${delta > 0 ? '+' : ''}${delta} điểm. Tổng: ${newPoints.toLocaleString()} điểm`);
+  try {
+    // Gửi POST đến Google Apps Script
+    const response = await fetch(CUSTOMER_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: phone, points: newPoints })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    // Kiểm tra phản hồi từ server (tùy cấu trúc bạn thiết kế)
+    if (result.success === true) {
+      // Thành công: cập nhật vào customerData và localStorage
+      customer.points = newPoints;
+      localStorage.setItem("customers", JSON.stringify(customerData));
+      
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerText = oldBtnText;
+      }
+      
+      alert(`✅ Đã cập nhật điểm cho ${customer.name}: ${delta > 0 ? '+' : ''}${delta} điểm. Tổng: ${newPoints.toLocaleString()} điểm`);
+    } else {
+      throw new Error(result.error || "Lỗi không xác định từ server");
+    }
+  } catch (error) {
+    // Có lỗi -> hoàn tác giao diện
+    alert("❌ Lỗi cập nhật điểm: " + error.message);
+    pointEl.textContent = oldDisplayText;
+    if (btnEl) {
+      btnEl.disabled = false;
+      btnEl.innerText = oldBtnText;
+    }
+  }
 }
 
 // ===== SEARCH =====
