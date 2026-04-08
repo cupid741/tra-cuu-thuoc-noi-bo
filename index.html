@@ -13,6 +13,15 @@ header {
   color: white;
   padding: 18px;
   text-align: center;
+  position: relative; /* THÊM position relative cho icon reload */
+}
+
+/* HIỆU ỨNG XOAY ICON RELOAD */
+.spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
 }
 
 .tabs { display: flex; background: #fff; }
@@ -72,6 +81,19 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 <header>
   TRA CỨU HỆ THỐNG<br>
   <small>Dev by Phúc Nguyễn</small>
+
+  <!-- ICON RELOAD - BỔ SUNG THEO YÊU CẦU -->
+  <span onclick="reloadData(event)"
+    title="Xóa cache & tải lại"
+    style="
+      position:absolute;
+      right:15px;
+      top:18px;
+      font-size:22px;
+      cursor:pointer;
+      user-select:none;">
+    🔄
+  </span>
 </header>
 
 <div class="tabs">
@@ -391,6 +413,42 @@ function doSearch() {
       </div>
     `).join("");
   }
+}
+
+// ===== HÀM RELOAD (XÓA CACHE & TẢI LẠI) - BỔ SUNG THEO YÊU CẦU =====
+function reloadData(event) {
+  // Lấy icon để thêm hiệu ứng xoay
+  const icon = event.currentTarget;
+  icon.classList.add("spin");
+
+  if (!confirm("Xóa cache và tải lại dữ liệu?")) {
+    icon.classList.remove("spin");
+    return;
+  }
+
+  // XÓA CACHE
+  localStorage.removeItem("drugData");
+  localStorage.removeItem("customers");
+
+  // Reset dữ liệu trong bộ nhớ
+  drugData = [];
+  customerData = [];
+  invoiceData = [];
+
+  // Xóa kết quả hiển thị
+  resultDiv.innerHTML = "";
+
+  updateStatus("Đang reload...");
+
+  // LOAD LẠI (các hàm load đã có sẵn, đảm bảo chạy song song và bỏ hiệu ứng xoay khi xong)
+  Promise.all([
+    loadDrug(),
+    loadCustomer(),
+    loadInvoice()
+  ]).finally(() => {
+    icon.classList.remove("spin");
+    updateStatus(); // Cập nhật lại trạng thái sau khi load xong
+  });
 }
 
 // ===== INIT =====
