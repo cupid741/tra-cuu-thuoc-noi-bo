@@ -260,7 +260,7 @@ function parseTime(timeStr) {
   return isNaN(d) ? 0 : d.getTime();
 }
 
-// ===== CẬP NHẬT ĐIỂM (NO-CORS, KHÔNG CẦN ĐỌC RESPONSE) =====
+// ===== CẬP NHẬT ĐIỂM (ĐÃ FIX THEO CƠ CHẾ BẢN CŨ) =====
 async function updatePoints(phone) {
   const inputEl = document.getElementById(`i-${phone}`);
   const pointEl = document.getElementById(`p-${phone}`);
@@ -269,8 +269,8 @@ async function updatePoints(phone) {
   if (!inputEl || !pointEl) return;
   
   let delta = parseInt(inputEl.value.trim(), 10);
-  if (isNaN(delta)) {
-    alert("Vui lòng nhập số điểm hợp lệ (có thể âm hoặc dương)");
+  if (isNaN(delta) || delta === 0) {
+    alert("Vui lòng nhập số điểm hợp lệ");
     return;
   }
   
@@ -280,12 +280,9 @@ async function updatePoints(phone) {
     return;
   }
   
-  const oldPoints = customer.points;
+  const oldText = pointEl.innerText;
+  const oldPoints = parseInt(oldText.replace(/\D/g, ""));
   const newPoints = Math.max(0, oldPoints + delta);
-  
-  // Lưu UI cũ để hoàn tác nếu lỗi (nhưng với no-cors thường không bắt được lỗi)
-  const oldDisplayText = pointEl.textContent;
-  const oldBtnText = btnEl ? btnEl.innerText : "";
   
   // Cập nhật giao diện ngay
   pointEl.textContent = newPoints.toLocaleString();
@@ -296,33 +293,36 @@ async function updatePoints(phone) {
   }
   
   try {
-    // Dùng no-cors để tránh lỗi CORS, server vẫn nhận được request
+    // SỬA LẠI ĐỊNH DẠNG BODY ĐỂ GOOGLE SCRIPT NHẬN DIỆN ĐÚNG
+    const params = new URLSearchParams();
+    params.append('phone', phone);
+    params.append('points', delta);
+    params.append('name', customer.name);
+
     await fetch(CUSTOMER_API, {
       method: "POST",
       mode: "no-cors",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: `phone=${encodeURIComponent(phone)}&points=${delta}&name=${encodeURIComponent(customer.name)}`
+      body: params.toString()
     });
     
-    // Vì không đọc được response, mặc định coi là thành công
+    // Cập nhật bộ nhớ đệm
     customer.points = newPoints;
     localStorage.setItem("customers", JSON.stringify(customerData));
     
     if (btnEl) {
       btnEl.disabled = false;
-      btnEl.innerText = oldBtnText;
+      btnEl.innerText = "➕ Cập nhật điểm";
     }
-    
-    alert(`✅ Đã gửi yêu cầu cập nhật ${delta > 0 ? '+' : ''}${delta} điểm cho ${customer.name}. Tổng hiển thị: ${newPoints.toLocaleString()} điểm`);
+    alert(`✅ Đã yêu cầu cập nhật điểm cho ${customer.name}`);
   } catch (error) {
-    // Lỗi mạng hoặc fetch thất bại -> hoàn tác
-    alert("❌ Lỗi kết nối, vui lòng thử lại.");
-    pointEl.textContent = oldDisplayText;
+    alert("❌ Lỗi kết nối!");
+    pointEl.textContent = oldText;
     if (btnEl) {
       btnEl.disabled = false;
-      btnEl.innerText = oldBtnText;
+      btnEl.innerText = "➕ Cập nhật điểm";
     }
   }
 }
@@ -369,7 +369,7 @@ function doSearch() {
         <input type="number"
           id="i-${d.phone}"
           placeholder="Nhập điểm (+ / -)"
-          style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px">
+          style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box">
 
         <button id="btn-${d.phone}"
           onclick="updatePoints('${d.phone}')"
