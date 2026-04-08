@@ -13,10 +13,9 @@ header {
   color: white;
   padding: 18px;
   text-align: center;
-  position: relative; /* THÊM position relative cho icon reload */
+  position: relative;
 }
 
-/* HIỆU ỨNG XOAY ICON RELOAD */
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -82,7 +81,6 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
   TRA CỨU HỆ THỐNG<br>
   <small>Dev by Phúc Nguyễn</small>
 
-  <!-- ICON RELOAD - BỔ SUNG THEO YÊU CẦU -->
   <span onclick="reloadData(event)"
     title="Xóa cache & tải lại"
     style="
@@ -133,7 +131,6 @@ function switchTab(e, tab) {
   input.value = "";
   resultDiv.innerHTML = "";
   
-  // Cập nhật placeholder theo tab
   if (tab === 'drug') {
     input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
   } else if (tab === 'customer') {
@@ -236,11 +233,10 @@ async function loadCustomer() {
   }
 }
 
-// ===== HÀM PHÂN TÍCH THỜI GIAN (để sắp xếp ngày gần nhất) =====
+// ===== HÀM PHÂN TÍCH THỜI GIAN =====
 function parseTime(timeStr) {
   if (!timeStr) return 0;
   
-  // Hỗ trợ định dạng "DD/MM/YYYY HH:MM:SS" hoặc "DD/MM/YYYY HH:MM"
   const parts = timeStr.split(' ');
   const datePart = parts[0];
   const timePart = parts[1] || '00:00:00';
@@ -260,12 +256,11 @@ function parseTime(timeStr) {
     return isNaN(date) ? 0 : date.getTime();
   }
   
-  // Fallback: thử parse trực tiếp (ISO, ...)
   const d = new Date(timeStr);
   return isNaN(d) ? 0 : d.getTime();
 }
 
-// ===== CẬP NHẬT ĐIỂM KHÁCH HÀNG (ĐÃ SỬA ĐỂ GỬI POST LÊN GOOGLE SHEET) =====
+// ===== CẬP NHẬT ĐIỂM (GỬI DELTA, TƯƠNG THÍCH APPS SCRIPT) =====
 async function updatePoints(phone) {
   const inputEl = document.getElementById(`i-${phone}`);
   const pointEl = document.getElementById(`p-${phone}`);
@@ -279,7 +274,6 @@ async function updatePoints(phone) {
     return;
   }
   
-  // Tìm khách hàng trong mảng
   const customer = customerData.find(c => c.phone === phone);
   if (!customer) {
     alert("Không tìm thấy khách hàng");
@@ -289,11 +283,11 @@ async function updatePoints(phone) {
   const oldPoints = customer.points;
   const newPoints = Math.max(0, oldPoints + delta);
   
-  // Lưu tạm trạng thái cũ để hoàn tác nếu lỗi
+  // Lưu trạng thái cũ để hoàn tác nếu lỗi
   const oldDisplayText = pointEl.textContent;
   const oldBtnText = btnEl ? btnEl.innerText : "";
   
-  // Cập nhật giao diện ngay để UX mượt
+  // Cập nhật UI ngay
   pointEl.textContent = newPoints.toLocaleString();
   inputEl.value = "";
   if (btnEl) {
@@ -302,11 +296,15 @@ async function updatePoints(phone) {
   }
   
   try {
-    // Gửi POST đến Google Apps Script
+    // Gửi delta (không phải tổng mới) để Apps Script tự cộng dồn
     const response = await fetch(CUSTOMER_API, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: phone, points: newPoints })
+      body: JSON.stringify({ 
+        phone: phone, 
+        points: delta,           // Đây là số điểm thay đổi
+        name: customer.name      // Gửi kèm tên để Apps Script dùng nếu tạo mới
+      })
     });
     
     if (!response.ok) {
@@ -315,9 +313,8 @@ async function updatePoints(phone) {
     
     const result = await response.json();
     
-    // Kiểm tra phản hồi từ server (tùy cấu trúc bạn thiết kế)
-    if (result.success === true) {
-      // Thành công: cập nhật vào customerData và localStorage
+    if (result.success) {
+      // Thành công: cập nhật local
       customer.points = newPoints;
       localStorage.setItem("customers", JSON.stringify(customerData));
       
@@ -331,7 +328,6 @@ async function updatePoints(phone) {
       throw new Error(result.error || "Lỗi không xác định từ server");
     }
   } catch (error) {
-    // Có lỗi -> hoàn tác giao diện
     alert("❌ Lỗi cập nhật điểm: " + error.message);
     pointEl.textContent = oldDisplayText;
     if (btnEl) {
@@ -428,7 +424,6 @@ function doSearch() {
       });
     });
 
-    // Chuyển object groups thành mảng và sắp xếp theo thời gian giảm dần (mới nhất trước)
     const groupsArray = Object.values(groups);
     groupsArray.sort((a, b) => parseTime(b.time) - parseTime(a.time));
 
@@ -451,9 +446,8 @@ function doSearch() {
   }
 }
 
-// ===== HÀM RELOAD (XÓA CACHE & TẢI LẠI) - BỔ SUNG THEO YÊU CẦU =====
+// ===== RELOAD =====
 function reloadData(event) {
-  // Lấy icon để thêm hiệu ứng xoay
   const icon = event.currentTarget;
   icon.classList.add("spin");
 
@@ -462,28 +456,24 @@ function reloadData(event) {
     return;
   }
 
-  // XÓA CACHE
   localStorage.removeItem("drugData");
   localStorage.removeItem("customers");
 
-  // Reset dữ liệu trong bộ nhớ
   drugData = [];
   customerData = [];
   invoiceData = [];
 
-  // Xóa kết quả hiển thị
   resultDiv.innerHTML = "";
 
   updateStatus("Đang reload...");
 
-  // LOAD LẠI (các hàm load đã có sẵn, đảm bảo chạy song song và bỏ hiệu ứng xoay khi xong)
   Promise.all([
     loadDrug(),
     loadCustomer(),
     loadInvoice()
   ]).finally(() => {
     icon.classList.remove("spin");
-    updateStatus(); // Cập nhật lại trạng thái sau khi load xong
+    updateStatus();
   });
 }
 
@@ -492,7 +482,6 @@ loadDrugCache();
 loadCustomerCache();
 updateStatus(); 
 
-// Đặt placeholder ban đầu (trùng với tab mặc định 'drug')
 input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
 
 loadDrug();
