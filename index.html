@@ -260,7 +260,7 @@ function parseTime(timeStr) {
   return isNaN(d) ? 0 : d.getTime();
 }
 
-// ===== CẬP NHẬT ĐIỂM (ĐÃ FIX THEO CƠ CHẾ BẢN CŨ) =====
+// ===== CẬP NHẬT ĐIỂM =====
 async function updatePoints(phone) {
   const inputEl = document.getElementById(`i-${phone}`);
   const pointEl = document.getElementById(`p-${phone}`);
@@ -284,7 +284,6 @@ async function updatePoints(phone) {
   const oldPoints = parseInt(oldText.replace(/\D/g, ""));
   const newPoints = Math.max(0, oldPoints + delta);
   
-  // Cập nhật giao diện ngay
   pointEl.textContent = newPoints.toLocaleString();
   inputEl.value = "";
   if (btnEl) {
@@ -293,7 +292,6 @@ async function updatePoints(phone) {
   }
   
   try {
-    // SỬA LẠI ĐỊNH DẠNG BODY ĐỂ GOOGLE SCRIPT NHẬN DIỆN ĐÚNG
     const params = new URLSearchParams();
     params.append('phone', phone);
     params.append('points', delta);
@@ -308,7 +306,6 @@ async function updatePoints(phone) {
       body: params.toString()
     });
     
-    // Cập nhật bộ nhớ đệm
     customer.points = newPoints;
     localStorage.setItem("customers", JSON.stringify(customerData));
     
@@ -331,12 +328,16 @@ async function updatePoints(phone) {
 let debounce;
 input.addEventListener("input", () => {
   clearTimeout(debounce);
-  debounce = setTimeout(doSearch, 150);
+  // Tăng thời gian chờ lên 300ms để giảm tải khi gõ nhanh
+  debounce = setTimeout(doSearch, 300);
 });
 
 function doSearch() {
   const q = input.value.trim();
-  if (!q) return resultDiv.innerHTML = "";
+  if (!q) {
+    resultDiv.innerHTML = "";
+    return;
+  }
 
   if (currentTab === "drug") {
     const searchQ = normalize(q);
@@ -348,7 +349,11 @@ function doSearch() {
   }
 
   else if (currentTab === "customer") {
-    if (q.length < 3) return;
+    // Yêu cầu nhập ít nhất 4 số để lọc chính xác hơn, tránh render quá nhiều
+    if (q.length < 4) {
+        resultDiv.innerHTML = `<div class="empty">Vui lòng nhập thêm số...</div>`;
+        return;
+    }
 
     let exact = [];
     let near = [];
@@ -356,9 +361,10 @@ function doSearch() {
     for (let d of customerData) {
       if (d.phone === q) exact.push(d);
       else if (d.phone.includes(q)) near.push(d);
+      if (exact.length + near.length > 30) break; // Giới hạn tìm kiếm sớm để tăng tốc
     }
 
-    const result = [...exact, ...near].slice(0, 50);
+    const result = [...exact, ...near].slice(0, 30);
 
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
@@ -381,8 +387,12 @@ function doSearch() {
   }
 
   else if (currentTab === "invoice") {
-    if (q.length < 3) return;
+    if (q.length < 4) {
+        resultDiv.innerHTML = `<div class="empty">Vui lòng nhập thêm số...</div>`;
+        return;
+    }
 
+    // Lọc và chỉ lấy tối đa 20 hóa đơn gần nhất để tránh lag trình duyệt
     const filtered = invoiceData.filter(d => String(d["Điện thoại"]).includes(q));
 
     if (!filtered.length) {
@@ -391,10 +401,8 @@ function doSearch() {
     }
 
     const groups = {};
-
     filtered.forEach(d => {
       const key = `${d["Thời gian"]}|${d["Tên khách hàng"]}|${d["Điện thoại"]}`;
-
       if (!groups[key]) {
         groups[key] = {
           time: d["Thời gian"],
@@ -404,7 +412,6 @@ function doSearch() {
           total: d["Tổng tiền hàng"] || 0
         };
       }
-
       groups[key].items.push({
         product: d["Tên hàng"],
         unit: d["ĐVT"],
@@ -414,10 +421,12 @@ function doSearch() {
       });
     });
 
+    // Sắp xếp và chỉ lấy 15 giao dịch gần nhất để đảm bảo mượt mà
     const groupsArray = Object.values(groups);
     groupsArray.sort((a, b) => parseTime(b.time) - parseTime(a.time));
+    const limitedGroups = groupsArray.slice(0, 15);
 
-    resultDiv.innerHTML = groupsArray.map(g => `
+    resultDiv.innerHTML = limitedGroups.map(g => `
       <div class="item">
         <b>🕒 ${g.time}</b><br>
         👤 ${g.name}<br>
@@ -433,6 +442,10 @@ function doSearch() {
         <b>💰 Tổng: ${Number(g.total).toLocaleString()}đ</b>
       </div>
     `).join("");
+    
+    if (groupsArray.length > 15) {
+        resultDiv.innerHTML += `<div class="empty">...Chỉ hiển thị 15 hóa đơn mới nhất...</div>`;
+    }
   }
 }
 
@@ -454,7 +467,6 @@ function reloadData(event) {
   invoiceData = [];
 
   resultDiv.innerHTML = "";
-
   updateStatus("Đang reload...");
 
   Promise.all([
