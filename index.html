@@ -23,16 +23,18 @@ header {
   100% { transform: rotate(360deg); }
 }
 
-.tabs { display: flex; background: #fff; }
+.tabs { display: flex; background: #fff; border-bottom: 1px solid #ddd; }
 .tab {
   flex: 1;
   padding: 12px;
   text-align: center;
   cursor: pointer;
+  font-size: 14px;
 }
 .tab.active {
-  border-bottom: 2px solid #2c7be5;
+  border-bottom: 3px solid #2c7be5;
   font-weight: bold;
+  color: #2c7be5;
 }
 
 .container { padding: 15px; }
@@ -72,6 +74,25 @@ input {
 }
 
 button:disabled { background: #ccc !important; cursor: not-allowed; }
+
+/* Thêm style cho phần bán hàng */
+.sell-item { border-bottom: 1px dashed #eee; padding: 10px 0; }
+.sell-total { font-size: 20px; color: #1a5edb; font-weight: bold; text-align: right; margin-top: 15px; }
+.btn-add { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+.btn-remove { background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px; float: right; }
+
+/* Style bổ sung cho khách hàng trong đơn hàng */
+.cust-order-box {
+    background: #f8faff;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #cfe2ff;
+}
+.new-cust-highlight {
+    border: 1px solid #ffc107 !important;
+    background: #fffdf5 !important;
+}
 </style>
 </head>
 
@@ -96,8 +117,9 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab(event,'drug')">💊 Thuốc</div>
-  <div class="tab" onclick="switchTab(event,'customer')">👤 Khách hàng</div>
-  <div class="tab" onclick="switchTab(event,'invoice')">🧾 Hóa đơn</div>
+  <div class="tab" onclick="switchTab(event,'sell')">🛒 Bán hàng</div>
+  <div class="tab" onclick="switchTab(event,'customer')">👤 Khách</div>
+  <div class="tab" onclick="switchTab(event,'invoice')">🧾 HĐ</div>
 </div>
 
 <div class="container">
@@ -105,6 +127,38 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
   <div id="status">Đang khởi tạo...</div>
   <div id="result"></div>
 </div>
+
+<script type="importmap">
+  {
+    "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+      "firebase/database": "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"
+    }
+  }
+</script>
+
+<script type="module">
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, set } from "firebase/database";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD8tbfOajkbnFPopOvI0hvF0pr0ggQc-og",
+  authDomain: "banthuochienmai.firebaseapp.com",
+  databaseURL: "https://banthuochienmai-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "banthuochienmai",
+  storageBucket: "banthuochienmai.firebasestorage.app",
+  messagingSenderId: "597472261106",
+  appId: "1:597472261106:web:318085562407162cc8b16b"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Gán db vào window để các hàm khác sử dụng được
+window.fbDb = db;
+window.fbSet = set;
+window.fbRef = ref;
+</script>
 
 <script>
 // ===== CONFIG =====
@@ -116,6 +170,8 @@ let currentTab = "drug";
 let drugData = [];
 let customerData = [];
 let invoiceData = [];
+let cart = []; 
+let customerInOrder = { phone: "", name: "", isNew: false, saveToSheet: true };
 let isDownloading = false;
 
 // ===== ELEMENT =====
@@ -133,6 +189,9 @@ function switchTab(e, tab) {
   
   if (tab === 'drug') {
     input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
+  } else if (tab === 'sell') {
+    input.placeholder = "Tìm thuốc để thêm vào đơn...";
+    renderCart();
   } else if (tab === 'customer') {
     input.placeholder = "Nhập tìm kiếm... (Số điện thoại)";
   } else if (tab === 'invoice') {
@@ -146,7 +205,7 @@ function switchTab(e, tab) {
 function updateStatus(msg) {
   let count = 0, label = "";
 
-  if (currentTab === "drug") {
+  if (currentTab === "drug" || currentTab === "sell") {
     count = drugData.length; label = "thuốc";
   } else if (currentTab === "customer") {
     count = customerData.length; label = "khách";
@@ -324,64 +383,212 @@ async function updatePoints(phone) {
   }
 }
 
+// ===== LOGIC BÁN HÀNG =====
+function findCustomerInOrder(phone) {
+    customerInOrder.phone = phone;
+    const found = customerData.find(c => c.phone === phone);
+    const infoArea = document.getElementById("customer-info-area");
+    const box = document.getElementById("cust-order-box");
+
+    if (found) {
+        customerInOrder.name = found.name;
+        customerInOrder.isNew = false;
+        if(box) box.className = "cust-order-box";
+        if(infoArea) infoArea.innerHTML = `<div style="margin-top: 5px;">Tên: <b style="color: #2c7be5;">${found.name}</b></div>`;
+    } else {
+        customerInOrder.isNew = phone.length >= 9;
+        if (customerInOrder.isNew) {
+            if(box) box.className = "cust-order-box new-cust-highlight";
+            if(infoArea) infoArea.innerHTML = `
+                <div style="color: #856404; font-size: 12px; margin-top: 5px;">✨ <b>Khách mới!</b> Nhập tên bên dưới:</div>
+                <input type="text" placeholder="Tên khách hàng mới..." oninput="customerInOrder.name = this.value" style="padding: 10px; margin-top: 5px; border: 1px solid #ffc107;">
+                <label style="display: flex; align-items: center; font-size: 13px; margin-top: 5px;">
+                    <input type="checkbox" checked onchange="customerInOrder.saveToSheet = this.checked" style="width: 18px; height: 18px; margin-right: 8px; margin-bottom: 0;"> Lưu thành viên
+                </label>`;
+        } else {
+            customerInOrder.name = "";
+            if(box) box.className = "cust-order-box";
+            if(infoArea) infoArea.innerHTML = `<div style="margin-top: 5px;">Tên: <b style="color: #2c7be5;">Khách lẻ</b></div>`;
+        }
+    }
+}
+
+function addToCart(name, price) {
+    const existing = cart.find(i => i.name === name);
+    if (existing) {
+        existing.qty += 1;
+    } else {
+        cart.push({ name, price: Number(price), qty: 1 });
+    }
+    input.value = "";
+    renderCart();
+}
+
+function removeFromCart(index) {
+    cart.splice(index, 1);
+    renderCart();
+}
+
+function updateQty(index, val) {
+    cart[index].qty = Math.max(1, Number(val));
+    renderCart();
+}
+
+async function finishOrder() {
+    if (cart.length === 0) return;
+    const btn = document.getElementById("btn-finish");
+    btn.disabled = true;
+    btn.innerText = "⌛ Đang xử lý...";
+
+    try {
+        // 1. Lưu khách hàng mới lên Google Sheet nếu cần (Fix POST Header)
+        if (customerInOrder.isNew && customerInOrder.saveToSheet && customerInOrder.phone) {
+            const p = new URLSearchParams();
+            p.append('phone', customerInOrder.phone);
+            p.append('name', customerInOrder.name || "Khách mới");
+            p.append('points', 0);
+            await fetch(CUSTOMER_API, { 
+                method: "POST", 
+                mode: "no-cors", 
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: p.toString() 
+            });
+        }
+
+        // 2. Lưu đơn hàng vào Firebase
+        const orderId = Date.now();
+        await window.fbSet(window.fbRef(window.fbDb, 'orders/' + orderId), {
+            time: new Date().toLocaleString('vi-VN'),
+            phone: customerInOrder.phone || "Khách lẻ",
+            name: customerInOrder.name || "Khách lẻ",
+            items: cart,
+            total: cart.reduce((s, i) => s + (i.price * i.qty), 0)
+        });
+
+        alert("✅ Hoàn tất đơn hàng thành công!");
+        cart = [];
+        customerInOrder = { phone: "", name: "", isNew: false, saveToSheet: true };
+        renderCart();
+        loadCustomer(); // Tải lại danh sách khách để cập nhật người mới
+    } catch (e) {
+        alert("❌ Lỗi: " + e.message);
+        btn.disabled = false;
+        btn.innerText = "HOÀN TẤT ĐƠN HÀNG";
+    }
+}
+
+function renderCart() {
+    if (currentTab !== 'sell') return;
+    
+    const now = new Date();
+    const timeStr = now.toLocaleDateString('vi-VN') + ' ' + now.toLocaleTimeString('vi-VN');
+    
+    let total = 0;
+    let html = `
+        <div class="item">
+            <div style="font-size: 13px; color: #666; margin-bottom: 10px;">🕒 <b>Thời gian:</b> ${timeStr}</div>
+            
+            <div id="cust-order-box" class="cust-order-box">
+                <b>👤 Khách hàng:</b><br>
+                <input type="number" id="cust-phone-input" value="${customerInOrder.phone}" placeholder="Nhập SĐT khách..." 
+                    oninput="findCustomerInOrder(this.value)" style="padding: 10px; margin-top: 5px; font-size: 16px;">
+                
+                <div id="customer-info-area">
+                    <div style="margin-top: 5px;">Tên: <b style="color: #2c7be5;">${customerInOrder.name || 'Khách lẻ'}</b></div>
+                </div>
+            </div>
+    `;
+    
+    if (cart.length === 0) {
+        html += `<div class="empty">Chưa có sản phẩm nào</div>`;
+    } else {
+        cart.forEach((item, index) => {
+            const subTotal = item.price * item.qty;
+            total += subTotal;
+            html += `
+                <div class="sell-item">
+                    <button class="btn-remove" onclick="removeFromCart(${index})">X</button>
+                    <b>${item.name}</b><br>
+                    <div style="margin-top: 8px;">
+                        Giá: ${item.price.toLocaleString()}đ x 
+                        <input type="number" value="${item.qty}" onchange="updateQty(${index}, this.value)" style="width: 50px; padding: 5px; margin: 0; display: inline-block; font-size: 14px;">
+                    </div>
+                    <div style="text-align: right; color: #555;">Thành tiền: <b>${subTotal.toLocaleString()}đ</b></div>
+                </div>
+            `;
+        });
+        html += `<div class="sell-total">TỔNG: ${total.toLocaleString()}đ</div>`;
+        html += `<button id="btn-finish" onclick="finishOrder()" style="width:100%;padding:15px;background:#28a745;color:white;border:none;border-radius:12px;font-weight:bold;margin-top:15px;cursor:pointer">HOÀN TẤT ĐƠN HÀNG</button>`;
+    }
+    
+    html += `</div>`;
+    resultDiv.innerHTML = html;
+    
+    // Fix focus: Chỉ cập nhật trạng thái box nếu cần, không vẽ lại input phone
+    if (customerInOrder.phone) {
+        findCustomerInOrder(customerInOrder.phone);
+    }
+}
+
 // ===== SEARCH =====
 let debounce;
 input.addEventListener("input", () => {
   clearTimeout(debounce);
-  // Tăng thời gian chờ lên 300ms để giảm tải khi gõ nhanh
   debounce = setTimeout(doSearch, 300);
 });
 
 function doSearch() {
   const q = input.value.trim();
-  if (!q) {
+  if (!q && currentTab !== 'sell') {
     resultDiv.innerHTML = "";
     return;
   }
+  if (!q && currentTab === 'sell') {
+      renderCart();
+      return;
+  }
 
-  if (currentTab === "drug") {
+  // Tìm kiếm thuốc trong tab Thuốc HOẶC Tab Bán hàng
+  if (currentTab === "drug" || currentTab === "sell") {
     const searchQ = normalize(q);
     if (searchQ.length < 2) return;
     const result = drugData.filter(d => d.search.includes(searchQ)).slice(0, 30);
-    resultDiv.innerHTML = result.length ? result.map(d => `
-      <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>
-    `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
+    
+    if (currentTab === "sell") {
+        // Giao diện chọn thuốc khi đang ở tab bán hàng
+        resultDiv.innerHTML = result.length ? result.map(d => `
+          <div class="item">
+            <b>${d.display}</b><br>
+            <span class="price">${Number(d.price).toLocaleString()}đ</span>
+            <button class="btn-add" style="float:right" onclick="addToCart('${d.display}', '${d.price}')">➕ Thêm</button>
+          </div>
+        `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
+    } else {
+        // Giao diện tra cứu thuốc bình thường
+        resultDiv.innerHTML = result.length ? result.map(d => `
+          <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>
+        `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
+    }
   }
 
   else if (currentTab === "customer") {
-    // Yêu cầu nhập ít nhất 4 số để lọc chính xác hơn, tránh render quá nhiều
     if (q.length < 4) {
         resultDiv.innerHTML = `<div class="empty">Vui lòng nhập thêm số...</div>`;
         return;
     }
-
     let exact = [];
     let near = [];
-
     for (let d of customerData) {
       if (d.phone === q) exact.push(d);
       else if (d.phone.includes(q)) near.push(d);
-      if (exact.length + near.length > 30) break; // Giới hạn tìm kiếm sớm để tăng tốc
+      if (exact.length + near.length > 30) break;
     }
-
     const result = [...exact, ...near].slice(0, 30);
-
     resultDiv.innerHTML = result.length ? result.map(d => `
       <div class="item">
-        <b>${d.name}</b><br>
-        📞 ${d.phone}<br>
-        ⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm<br><br>
-
-        <input type="number"
-          id="i-${d.phone}"
-          placeholder="Nhập điểm (+ / -)"
-          style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box">
-
-        <button id="btn-${d.phone}"
-          onclick="updatePoints('${d.phone}')"
-          style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">
-          ➕ Cập nhật điểm
-        </button>
+        <b>${d.name}</b><br>📞 ${d.phone}<br>⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm<br><br>
+        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm (+ / -)" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box">
+        <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')" style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">➕ Cập nhật điểm</button>
       </div>
     `).join("") : `<div class="empty">Không tìm thấy khách hàng</div>`;
   }
@@ -391,61 +598,34 @@ function doSearch() {
         resultDiv.innerHTML = `<div class="empty">Vui lòng nhập thêm số...</div>`;
         return;
     }
-
-    // Lọc và chỉ lấy tối đa 20 hóa đơn gần nhất để tránh lag trình duyệt
     const filtered = invoiceData.filter(d => String(d["Điện thoại"]).includes(q));
-
     if (!filtered.length) {
       resultDiv.innerHTML = `<div class="empty">Không tìm thấy hóa đơn</div>`;
       return;
     }
-
     const groups = {};
     filtered.forEach(d => {
       const key = `${d["Thời gian"]}|${d["Tên khách hàng"]}|${d["Điện thoại"]}`;
       if (!groups[key]) {
         groups[key] = {
-          time: d["Thời gian"],
-          name: d["Tên khách hàng"],
-          phone: d["Điện thoại"],
-          items: [],
-          total: d["Tổng tiền hàng"] || 0
+          time: d["Thời gian"], name: d["Tên khách hàng"], phone: d["Điện thoại"],
+          items: [], total: d["Tổng tiền hàng"] || 0
         };
       }
       groups[key].items.push({
-        product: d["Tên hàng"],
-        unit: d["ĐVT"],
-        qty: d["Số lượng"],
-        price: d["Đơn giá"],
-        amount: d["Thành tiền"]
+        product: d["Tên hàng"], unit: d["ĐVT"], qty: d["Số lượng"], price: d["Đơn giá"], amount: d["Thành tiền"]
       });
     });
-
-    // Sắp xếp và chỉ lấy 15 giao dịch gần nhất để đảm bảo mượt mà
     const groupsArray = Object.values(groups);
     groupsArray.sort((a, b) => parseTime(b.time) - parseTime(a.time));
     const limitedGroups = groupsArray.slice(0, 15);
-
     resultDiv.innerHTML = limitedGroups.map(g => `
       <div class="item">
-        <b>🕒 ${g.time}</b><br>
-        👤 ${g.name}<br>
-        📞 ${g.phone}<br><br>
-
-        ${g.items.map(i => `
-          • ${i.product} (${i.unit})<br>
-          SL: ${i.qty} | Giá: ${Number(i.price).toLocaleString()}đ<br>
-          Thành tiền: <b>${Number(i.amount).toLocaleString()}đ</b><br><br>
-        `).join("")}
-
-        <hr>
-        <b>💰 Tổng: ${Number(g.total).toLocaleString()}đ</b>
+        <b>🕒 ${g.time}</b><br>👤 ${g.name}<br>📞 ${g.phone}<br><br>
+        ${g.items.map(i => `• ${i.product} (${i.unit})<br>SL: ${i.qty} | Giá: ${Number(i.price).toLocaleString()}đ<br>Thành tiền: <b>${Number(i.amount).toLocaleString()}đ</b><br><br>`).join("")}
+        <hr><b>💰 Tổng: ${Number(g.total).toLocaleString()}đ</b>
       </div>
-    `).join("");
-    
-    if (groupsArray.length > 15) {
-        resultDiv.innerHTML += `<div class="empty">...Chỉ hiển thị 15 hóa đơn mới nhất...</div>`;
-    }
+    `).join("") + (groupsArray.length > 15 ? `<div class="empty">...Chỉ hiển thị 15 hóa đơn mới nhất...</div>` : "");
   }
 }
 
@@ -453,27 +633,16 @@ function doSearch() {
 function reloadData(event) {
   const icon = event.currentTarget;
   icon.classList.add("spin");
-
   if (!confirm("Xóa cache và tải lại dữ liệu?")) {
     icon.classList.remove("spin");
     return;
   }
-
   localStorage.removeItem("drugData");
   localStorage.removeItem("customers");
-
-  drugData = [];
-  customerData = [];
-  invoiceData = [];
-
+  drugData = []; customerData = []; invoiceData = [];
   resultDiv.innerHTML = "";
   updateStatus("Đang reload...");
-
-  Promise.all([
-    loadDrug(),
-    loadCustomer(),
-    loadInvoice()
-  ]).finally(() => {
+  Promise.all([loadDrug(), loadCustomer(), loadInvoice()]).finally(() => {
     icon.classList.remove("spin");
     updateStatus();
   });
@@ -483,13 +652,10 @@ function reloadData(event) {
 loadDrugCache();
 loadCustomerCache();
 updateStatus(); 
-
 input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
-
 loadDrug();
 loadCustomer();
 loadInvoice();
-
 setInterval(loadCustomer, 300000);
 </script>
 </body>
