@@ -434,6 +434,12 @@ function updateQty(index, val) {
     renderCart();
 }
 
+// Hàm mới để cập nhật đơn giá
+function updatePrice(index, val) {
+    cart[index].price = Math.max(0, Number(val));
+    renderCart();
+}
+
 async function finishOrder() {
     if (cart.length === 0) return;
     const btn = document.getElementById("btn-finish");
@@ -441,7 +447,7 @@ async function finishOrder() {
     btn.innerText = "⌛ Đang xử lý...";
 
     try {
-        // 1. Lưu khách hàng mới lên Google Sheet nếu cần (Fix POST Header)
+        // 1. Lưu khách hàng mới lên Google Sheet nếu cần
         if (customerInOrder.isNew && customerInOrder.saveToSheet && customerInOrder.phone) {
             const p = new URLSearchParams();
             p.append('phone', customerInOrder.phone);
@@ -509,11 +515,11 @@ function renderCart() {
                 <div class="sell-item">
                     <button class="btn-remove" onclick="removeFromCart(${index})">X</button>
                     <b>${item.name}</b><br>
-                    <div style="margin-top: 8px;">
-                        Giá: ${item.price.toLocaleString()}đ x 
-                        <input type="number" value="${item.qty}" onchange="updateQty(${index}, this.value)" style="width: 50px; padding: 5px; margin: 0; display: inline-block; font-size: 14px;">
+                    <div style="margin-top: 8px; font-size: 14px;">
+                        Đ.Giá: <input type="number" value="${item.price}" onchange="updatePrice(${index}, this.value)" style="width: 85px; padding: 5px; margin: 0; display: inline-block; font-size: 14px; border: 1px solid #eee;"> x 
+                        SL: <input type="number" value="${item.qty}" onchange="updateQty(${index}, this.value)" style="width: 45px; padding: 5px; margin: 0; display: inline-block; font-size: 14px; border: 1px solid #eee;">
                     </div>
-                    <div style="text-align: right; color: #555;">Thành tiền: <b>${subTotal.toLocaleString()}đ</b></div>
+                    <div style="text-align: right; color: #555; margin-top: 5px;">Thành tiền: <b>${subTotal.toLocaleString()}đ</b></div>
                 </div>
             `;
         });
@@ -524,7 +530,7 @@ function renderCart() {
     html += `</div>`;
     resultDiv.innerHTML = html;
     
-    // Fix focus: Chỉ cập nhật trạng thái box nếu cần, không vẽ lại input phone
+    // Giữ thông tin khách hàng không bị mất khi render lại
     if (customerInOrder.phone) {
         findCustomerInOrder(customerInOrder.phone);
     }
