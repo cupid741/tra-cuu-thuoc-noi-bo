@@ -1,118 +1,340 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TRA CỨU HỆ THỐNG</title>
-
-<style>
-body { font-family: Arial; margin: 0; background: #f0f2f5; }
-
-header {
-  background: linear-gradient(135deg,#2c7be5,#1a5edb);
-  color: white;
-  padding: 18px;
-  text-align: center;
-  position: relative;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  100% { transform: rotate(360deg); }
-}
-
-.tabs { display: flex; background: #fff; border-bottom: 1px solid #ddd; }
-.tab {
-  flex: 1;
-  padding: 12px;
-  text-align: center;
-  cursor: pointer;
-  font-size: 14px;
-}
-.tab.active {
-  border-bottom: 3px solid #2c7be5;
-  font-weight: bold;
-  color: #2c7be5;
-}
-
-.container { padding: 15px; }
-
-input {
-  width: 100%;
-  padding: 14px;
-  font-size: 18px;
-  border-radius: 12px;
-  border: 1px solid #ddd;
-  margin-bottom: 10px;
-  box-sizing: border-box; 
-}
-
-.item {
-  background: white;
-  padding: 14px;
-  margin-top: 10px;
-  border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-}
-
-.price { color: red; font-weight: bold; }
-
-.empty { text-align: center; color: #999; padding: 20px; }
-
-.loading-text {
-  color: #2c7be5;
-  font-weight: bold;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
-button:disabled { background: #ccc !important; cursor: not-allowed; }
-
-/* Thêm style cho phần bán hàng */
-.sell-item { border-bottom: 1px dashed #eee; padding: 10px 0; }
-.sell-total { font-size: 20px; color: #1a5edb; font-weight: bold; text-align: right; margin-top: 15px; }
-.btn-add { background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
-.btn-remove { background: #dc3545; color: white; border: none; padding: 2px 8px; border-radius: 4px; float: right; }
-
-/* Style bổ sung cho khách hàng trong đơn hàng */
-.cust-order-box {
-    background: #f8faff;
-    padding: 12px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #cfe2ff;
-}
-.new-cust-highlight {
-    border: 1px solid #ffc107 !important;
-    background: #fffdf5 !important;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>NHÀ THUỐC HIỀN MAI</title>
+  
+  <!-- Font & base style -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ----- RESET & VARIABLES ----- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+    }
+    
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #f4f7fc;
+      margin: 0;
+      min-height: 100vh;
+      color: #1e293b;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    :root {
+      --primary: #2563eb;
+      --primary-light: #3b82f6;
+      --primary-dark: #1d4ed8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --gray-bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border-light: #e2e8f0;
+      --text-secondary: #64748b;
+      --shadow-sm: 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+      --shadow-md: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+      --radius-card: 20px;
+      --radius-element: 14px;
+    }
+    
+    /* ----- HEADER ----- */
+    header {
+      background: linear-gradient(145deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      padding: 20px 18px;
+      position: relative;
+      box-shadow: var(--shadow-md);
+      border-bottom-left-radius: 24px;
+      border-bottom-right-radius: 24px;
+      margin-bottom: 4px;
+    }
+    
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+    
+    header small {
+      font-weight: 400;
+      opacity: 0.85;
+      font-size: 0.8rem;
+      display: block;
+    }
+    
+    .reload-btn {
+      position: absolute;
+      right: 18px;
+      top: 22px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(4px);
+      border-radius: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid rgba(255,255,255,0.1);
+      user-select: none;
+    }
+    .reload-btn:hover {
+      background: rgba(255,255,255,0.25);
+      transform: scale(0.96);
+    }
+    .spin {
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    
+    /* ----- TABS ----- */
+    .tabs {
+      display: flex;
+      background: var(--card-bg);
+      margin: 8px 16px 0;
+      padding: 6px;
+      border-radius: 60px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+      backdrop-filter: blur(10px);
+    }
+    .tab {
+      flex: 1;
+      padding: 12px 4px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 40px;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+      background: transparent;
+      border: none;
+    }
+    .tab.active {
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 6px 12px -6px rgba(37, 99, 235, 0.4);
+      font-weight: 600;
+    }
+    
+    /* ----- CONTAINER & INPUT ----- */
+    .container {
+      padding: 16px 16px 24px;
+    }
+    
+    #search {
+      width: 100%;
+      padding: 16px 18px;
+      font-size: 1rem;
+      border-radius: 30px;
+      border: 1.5px solid var(--border-light);
+      background: var(--card-bg);
+      box-shadow: var(--shadow-sm);
+      transition: border 0.2s, box-shadow 0.2s;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+    #search:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+    }
+    #search::placeholder {
+      color: #94a3b8;
+      font-weight: 400;
+    }
+    
+    /* Status bar */
+    #status {
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      padding: 4px 8px;
+      border-radius: 30px;
+      display: inline-block;
+      background: #eef2ff;
+      color: var(--primary-dark);
+      font-weight: 500;
+    }
+    .loading-text {
+      animation: pulse 1.5s infinite;
+      display: inline-block;
+    }
+    @keyframes pulse { 0%,100%{ opacity: 1; } 50%{ opacity: 0.5; } }
+    
+    /* ----- CARDS & ITEMS ----- */
+    .item, .card {
+      background: var(--card-bg);
+      padding: 18px 16px;
+      margin-bottom: 12px;
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+      transition: transform 0.1s;
+    }
+    
+    .price {
+      color: var(--danger);
+      font-weight: 700;
+      font-size: 1.2rem;
+      display: inline-block;
+      margin-top: 6px;
+    }
+    
+    .empty {
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 36px 20px;
+      background: var(--card-bg);
+      border-radius: 32px;
+      font-weight: 500;
+    }
+    
+    /* ----- BUTTONS ----- */
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 40px;
+      padding: 12px 18px;
+      font-weight: 600;
+      box-shadow: 0 8px 14px -8px rgba(37, 99, 235, 0.4);
+    }
+    .btn-add {
+      background: var(--success);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 8px -4px rgba(16, 185, 129, 0.3);
+    }
+    .btn-remove {
+      background: #fee2e2;
+      color: var(--danger);
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 40px;
+      font-weight: bold;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-remove:hover {
+      background: #fecaca;
+    }
+    button:disabled {
+      opacity: 0.6;
+      filter: grayscale(0.3);
+      cursor: not-allowed;
+    }
+    
+    /* ----- SELL CART SPECIFIC ----- */
+    .sell-item {
+      border-bottom: 1px solid #f1f5f9;
+      padding: 16px 0;
+    }
+    .sell-item:last-child { border-bottom: none; }
+    
+    .sell-total {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      text-align: right;
+      margin-top: 20px;
+      padding-top: 12px;
+      border-top: 2px dashed var(--border-light);
+    }
+    
+    .cust-order-box {
+      background: #f0f9ff;
+      padding: 16px;
+      border-radius: 18px;
+      margin-bottom: 18px;
+      border: 1px solid #bae6fd;
+    }
+    .new-cust-highlight {
+      background: #fffbeb;
+      border-color: #fcd34d;
+    }
+    
+    /* input inside cards */
+    input[type="number"], input[type="text"] {
+      border: 1.5px solid var(--border-light);
+      border-radius: 18px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      background: white;
+    }
+    
+    /* customer point update */
+    .point-input {
+      width: 100%;
+      margin: 8px 0;
+    }
+    
+    /* invoice groups */
+    .invoice-group {
+      background: var(--card-bg);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    /* helper */
+    .text-muted { color: var(--text-secondary); }
+    .flex { display: flex; align-items: center; gap: 8px; }
+    
+    /* improve sell quantity / price inline */
+    .inline-input-small {
+      width: 90px;
+      padding: 8px 10px;
+      margin: 0 4px;
+      text-align: right;
+      border-radius: 20px;
+    }
+    
+    /* finish button */
+    .btn-finish {
+      width: 100%;
+      padding: 18px;
+      background: var(--success);
+      color: white;
+      border: none;
+      border-radius: 60px;
+      font-weight: 700;
+      font-size: 1.2rem;
+      margin-top: 20px;
+      box-shadow: 0 12px 20px -8px rgba(16, 185, 129, 0.4);
+    }
+  </style>
 </head>
 
 <body>
 
 <header>
-  TRA CỨU HỆ THỐNG<br>
-  <small>Dev by Phúc Nguyễn</small>
-
-  <span onclick="reloadData(event)"
-    title="Xóa cache & tải lại"
-    style="
-      position:absolute;
-      right:15px;
-      top:18px;
-      font-size:22px;
-      cursor:pointer;
-      user-select:none;">
-    🔄
-  </span>
+  <div style="font-weight: 700; font-size: 1.8rem; letter-spacing: -0.02em;">📋 NHÀ THUỐC HIỀN MAI</div>
+  <small> • DEV BY Phúc Nguyễn •</small>
+  <div class="reload-btn" onclick="reloadData(event)" title="Đồng bộ & tải lại">🔄</div>
 </header>
 
 <div class="tabs">
@@ -123,11 +345,12 @@ button:disabled { background: #ccc !important; cursor: not-allowed; }
 </div>
 
 <div class="container">
-  <input id="search" placeholder="Nhập tìm kiếm... (Tên thuốc)">
+  <input id="search" placeholder="Nhập tên thuốc ..." autocomplete="off">
   <div id="status">Đang khởi tạo...</div>
   <div id="result"></div>
 </div>
 
+<!-- Firebase & logic (giữ nguyên chức năng, tinh chỉnh class) -->
 <script type="importmap">
   {
     "imports": {
@@ -153,8 +376,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-
-// Gán db vào window để các hàm khác sử dụng được
 window.fbDb = db;
 window.fbSet = set;
 window.fbRef = ref;
@@ -174,50 +395,33 @@ let cart = [];
 let customerInOrder = { phone: "", name: "", isNew: false, saveToSheet: true };
 let isDownloading = false;
 
-// ===== ELEMENT =====
 const input = document.getElementById("search");
 const resultDiv = document.getElementById("result");
 const statusDiv = document.getElementById("status");
 
 // ===== TAB =====
-function switchTab(e, tab) {
+window.switchTab = function(e, tab) {
   currentTab = tab;
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   e.target.classList.add("active");
   input.value = "";
   resultDiv.innerHTML = "";
   
-  if (tab === 'drug') {
-    input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
-  } else if (tab === 'sell') {
-    input.placeholder = "Tìm thuốc để thêm vào đơn...";
-    renderCart();
-  } else if (tab === 'customer') {
-    input.placeholder = "Nhập tìm kiếm... (Số điện thoại)";
-  } else if (tab === 'invoice') {
-    input.placeholder = "Nhập tìm kiếm... (Số điện thoại)";
-  }
+  if (tab === 'drug') input.placeholder = "Nhập tên thuốc ...";
+  else if (tab === 'sell') { input.placeholder = "Tìm thuốc để thêm vào đơn ..."; renderCart(); }
+  else if (tab === 'customer') input.placeholder = "Nhập số điện thoại ...";
+  else if (tab === 'invoice') input.placeholder = "Nhập SĐT tra cứu hóa đơn ...";
   
   updateStatus();
-}
+};
 
-// ===== STATUS =====
 function updateStatus(msg) {
   let count = 0, label = "";
+  if (currentTab === "drug" || currentTab === "sell") { count = drugData.length; label = "thuốc"; }
+  else if (currentTab === "customer") { count = customerData.length; label = "khách"; }
+  else { count = invoiceData.length; label = "hóa đơn"; }
 
-  if (currentTab === "drug" || currentTab === "sell") {
-    count = drugData.length; label = "thuốc";
-  } else if (currentTab === "customer") {
-    count = customerData.length; label = "khách";
-  } else {
-    count = invoiceData.length; label = "hóa đơn";
-  }
-
-  if (msg) {
-    statusDiv.innerHTML = `<span class="loading-text">${msg}</span> (${count} ${label})`;
-  } else {
-    statusDiv.innerHTML = `Sẵn sàng (${count} ${label})`;
-  }
+  statusDiv.innerHTML = msg ? `<span class="loading-text">${msg}</span> (${count} ${label})` : `✨ Sẵn sàng (${count} ${label})`;
 }
 
 // ===== LOAD INVOICE =====
@@ -229,439 +433,200 @@ async function loadInvoice() {
     const jsons = await Promise.all(responses.map(r => r.json()));
     invoiceData = jsons.flat();
     updateStatus();
-  } catch (e) {
-    updateStatus("Lỗi tải hóa đơn!");
-  }
+  } catch (e) { updateStatus("Lỗi tải hóa đơn!"); }
 }
 
-// ===== NORMALIZE =====
 function normalize(str) {
   return (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
-// ===== LOAD DRUG =====
-function loadDrugCache() {
-  const c = localStorage.getItem("drugData");
-  if (c) drugData = JSON.parse(c);
-}
-
+function loadDrugCache() { const c = localStorage.getItem("drugData"); if (c) drugData = JSON.parse(c); }
 async function loadDrug() {
   updateStatus("Đang tải thuốc...");
   try {
-    const res = await fetch(DRUG_API);
-    const data = await res.json();
-    drugData = data.map(d => ({
-      display: d[0],
-      search: normalize(d[0]),
-      price: d[1]
-    }));
+    const res = await fetch(DRUG_API); const data = await res.json();
+    drugData = data.map(d => ({ display: d[0], search: normalize(d[0]), price: d[1] }));
     localStorage.setItem("drugData", JSON.stringify(drugData));
     updateStatus();
-  } catch (e) { 
-    updateStatus("Lỗi tải thuốc!");
-  }
+  } catch (e) { updateStatus("Lỗi tải thuốc!"); }
 }
 
-// ===== LOAD CUSTOMER =====
-function loadCustomerCache() {
-  const c = localStorage.getItem("customers");
-  if (c) customerData = JSON.parse(c);
-}
-
+function loadCustomerCache() { const c = localStorage.getItem("customers"); if (c) customerData = JSON.parse(c); }
 async function loadCustomer() {
   if (isDownloading) return;
-  isDownloading = true;
-  updateStatus("Đang đồng bộ...");
-  
+  isDownloading = true; updateStatus("Đang đồng bộ...");
   try {
-    const res = await fetch(CUSTOMER_API);
-    const data = await res.json();
-
-    customerData = data.map(d => ({
-      name: d[0],
-      phone: String(d[1]),
-      points: Number(d[2])
-    }));
-
+    const res = await fetch(CUSTOMER_API); const data = await res.json();
+    customerData = data.map(d => ({ name: d[0], phone: String(d[1]), points: Number(d[2]) }));
     localStorage.setItem("customers", JSON.stringify(customerData));
-    isDownloading = false;
-    updateStatus(); 
-  } catch (e) { 
-    isDownloading = false;
-    updateStatus("Lỗi đồng bộ!");
-  }
+    isDownloading = false; updateStatus(); 
+  } catch (e) { isDownloading = false; updateStatus("Lỗi đồng bộ!"); }
 }
 
-// ===== HÀM PHÂN TÍCH THỜI GIAN =====
 function parseTime(timeStr) {
   if (!timeStr) return 0;
-  
-  const parts = timeStr.split(' ');
-  const datePart = parts[0];
-  const timePart = parts[1] || '00:00:00';
-  
+  const parts = timeStr.split(' '); const datePart = parts[0]; const timePart = parts[1] || '00:00:00';
   const dateSegments = datePart.includes('/') ? datePart.split('/') : datePart.split('-');
   if (dateSegments.length === 3) {
-    const day = parseInt(dateSegments[0], 10);
-    const month = parseInt(dateSegments[1], 10) - 1;
-    const year = parseInt(dateSegments[2], 10);
-    
-    const timeSegments = timePart.split(':');
-    const hour = parseInt(timeSegments[0], 10) || 0;
-    const minute = parseInt(timeSegments[1], 10) || 0;
-    const second = parseInt(timeSegments[2], 10) || 0;
-    
+    const day = parseInt(dateSegments[0]), month = parseInt(dateSegments[1])-1, year = parseInt(dateSegments[2]);
+    const timeSegments = timePart.split(':'); const hour = parseInt(timeSegments[0]||0), minute = parseInt(timeSegments[1]||0), second = parseInt(timeSegments[2]||0);
     const date = new Date(year, month, day, hour, minute, second);
     return isNaN(date) ? 0 : date.getTime();
   }
-  
-  const d = new Date(timeStr);
-  return isNaN(d) ? 0 : d.getTime();
+  return new Date(timeStr).getTime() || 0;
 }
 
-// ===== CẬP NHẬT ĐIỂM =====
-async function updatePoints(phone) {
-  const inputEl = document.getElementById(`i-${phone}`);
-  const pointEl = document.getElementById(`p-${phone}`);
-  const btnEl = document.getElementById(`btn-${phone}`);
-  
+// Cập nhật điểm
+window.updatePoints = async function(phone) {
+  const inputEl = document.getElementById(`i-${phone}`); const pointEl = document.getElementById(`p-${phone}`); const btnEl = document.getElementById(`btn-${phone}`);
   if (!inputEl || !pointEl) return;
-  
   let delta = parseInt(inputEl.value.trim(), 10);
-  if (isNaN(delta) || delta === 0) {
-    alert("Vui lòng nhập số điểm hợp lệ");
-    return;
-  }
-  
+  if (isNaN(delta) || delta === 0) { alert("Vui lòng nhập số điểm hợp lệ"); return; }
   const customer = customerData.find(c => c.phone === phone);
-  if (!customer) {
-    alert("Không tìm thấy khách hàng");
-    return;
-  }
-  
-  const oldText = pointEl.innerText;
-  const oldPoints = parseInt(oldText.replace(/\D/g, ""));
+  if (!customer) { alert("Không tìm thấy khách"); return; }
+  const oldText = pointEl.innerText; const oldPoints = parseInt(oldText.replace(/\D/g, ""));
   const newPoints = Math.max(0, oldPoints + delta);
-  
-  pointEl.textContent = newPoints.toLocaleString();
-  inputEl.value = "";
-  if (btnEl) {
-    btnEl.disabled = true;
-    btnEl.innerText = "Đang lưu...";
-  }
-  
+  pointEl.textContent = newPoints.toLocaleString(); inputEl.value = "";
+  if (btnEl) { btnEl.disabled = true; btnEl.innerText = "Đang lưu..."; }
   try {
-    const params = new URLSearchParams();
-    params.append('phone', phone);
-    params.append('points', delta);
-    params.append('name', customer.name);
+    const params = new URLSearchParams(); params.append('phone', phone); params.append('points', delta); params.append('name', customer.name);
+    await fetch(CUSTOMER_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: params.toString() });
+    customer.points = newPoints; localStorage.setItem("customers", JSON.stringify(customerData));
+    if (btnEl) { btnEl.disabled = false; btnEl.innerText = "➕ Cập nhật điểm"; }
+    alert(`✅ Đã cập nhật điểm cho ${customer.name}`);
+  } catch (error) { alert("❌ Lỗi kết nối!"); pointEl.textContent = oldText; if(btnEl){ btnEl.disabled = false; btnEl.innerText = "➕ Cập nhật điểm"; } }
+};
 
-    await fetch(CUSTOMER_API, {
-      method: "POST",
-      mode: "no-cors",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: params.toString()
-    });
-    
-    customer.points = newPoints;
-    localStorage.setItem("customers", JSON.stringify(customerData));
-    
-    if (btnEl) {
-      btnEl.disabled = false;
-      btnEl.innerText = "➕ Cập nhật điểm";
-    }
-    alert(`✅ Đã yêu cầu cập nhật điểm cho ${customer.name}`);
-  } catch (error) {
-    alert("❌ Lỗi kết nối!");
-    pointEl.textContent = oldText;
-    if (btnEl) {
-      btnEl.disabled = false;
-      btnEl.innerText = "➕ Cập nhật điểm";
-    }
+// Bán hàng
+window.findCustomerInOrder = function(phone) {
+  customerInOrder.phone = phone; const found = customerData.find(c => c.phone === phone);
+  const infoArea = document.getElementById("customer-info-area"); const box = document.getElementById("cust-order-box");
+  if (found) {
+    customerInOrder.name = found.name; customerInOrder.isNew = false;
+    if(box) box.className = "cust-order-box"; if(infoArea) infoArea.innerHTML = `<div style="margin-top:8px">👋 <b>${found.name}</b> (thành viên)</div>`;
+  } else {
+    customerInOrder.isNew = phone.length >= 9;
+    if (customerInOrder.isNew) {
+      if(box) box.className = "cust-order-box new-cust-highlight";
+      if(infoArea) infoArea.innerHTML = `<div style="color:#b45309; margin-top:8px">✨ Khách mới! Nhập tên:</div>
+        <input type="text" placeholder="Tên khách hàng" oninput="customerInOrder.name = this.value" style="width:100%; margin-top:6px">
+        <label style="display:flex; align-items:center; margin-top:8px"><input type="checkbox" checked onchange="customerInOrder.saveToSheet = this.checked"> Lưu thành viên</label>`;
+    } else { customerInOrder.name = ""; if(box) box.className = "cust-order-box"; if(infoArea) infoArea.innerHTML = `<div>🧑 Khách lẻ</div>`; }
   }
-}
+};
 
-// ===== LOGIC BÁN HÀNG =====
-function findCustomerInOrder(phone) {
-    customerInOrder.phone = phone;
-    const found = customerData.find(c => c.phone === phone);
-    const infoArea = document.getElementById("customer-info-area");
-    const box = document.getElementById("cust-order-box");
+window.addToCart = function(name, price) {
+  const existing = cart.find(i => i.name === name);
+  if (existing) existing.qty += 1; else cart.push({ name, price: Number(price), qty: 1 });
+  input.value = ""; renderCart();
+};
+window.removeFromCart = function(index) { cart.splice(index, 1); renderCart(); };
+window.updateQty = function(index, val) { cart[index].qty = Math.max(1, Number(val)); renderCart(); };
+window.updatePrice = function(index, val) { cart[index].price = Math.max(0, Number(val)); renderCart(); };
 
-    if (found) {
-        customerInOrder.name = found.name;
-        customerInOrder.isNew = false;
-        if(box) box.className = "cust-order-box";
-        if(infoArea) infoArea.innerHTML = `<div style="margin-top: 5px;">Tên: <b style="color: #2c7be5;">${found.name}</b></div>`;
-    } else {
-        customerInOrder.isNew = phone.length >= 9;
-        if (customerInOrder.isNew) {
-            if(box) box.className = "cust-order-box new-cust-highlight";
-            if(infoArea) infoArea.innerHTML = `
-                <div style="color: #856404; font-size: 12px; margin-top: 5px;">✨ <b>Khách mới!</b> Nhập tên bên dưới:</div>
-                <input type="text" placeholder="Tên khách hàng mới..." oninput="customerInOrder.name = this.value" style="padding: 10px; margin-top: 5px; border: 1px solid #ffc107;">
-                <label style="display: flex; align-items: center; font-size: 13px; margin-top: 5px;">
-                    <input type="checkbox" checked onchange="customerInOrder.saveToSheet = this.checked" style="width: 18px; height: 18px; margin-right: 8px; margin-bottom: 0;"> Lưu thành viên
-                </label>`;
-        } else {
-            customerInOrder.name = "";
-            if(box) box.className = "cust-order-box";
-            if(infoArea) infoArea.innerHTML = `<div style="margin-top: 5px;">Tên: <b style="color: #2c7be5;">Khách lẻ</b></div>`;
-        }
+window.finishOrder = async function() {
+  if (cart.length === 0) return; const btn = document.getElementById("btn-finish"); btn.disabled = true; btn.innerText = "⌛ Đang xử lý...";
+  try {
+    if (customerInOrder.isNew && customerInOrder.saveToSheet && customerInOrder.phone) {
+      const p = new URLSearchParams(); p.append('phone', customerInOrder.phone); p.append('name', customerInOrder.name||"Khách mới"); p.append('points', 0);
+      await fetch(CUSTOMER_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: p.toString() });
     }
-}
-
-function addToCart(name, price) {
-    const existing = cart.find(i => i.name === name);
-    if (existing) {
-        existing.qty += 1;
-    } else {
-        cart.push({ name, price: Number(price), qty: 1 });
-    }
-    input.value = "";
-    renderCart();
-}
-
-function removeFromCart(index) {
-    cart.splice(index, 1);
-    renderCart();
-}
-
-function updateQty(index, val) {
-    cart[index].qty = Math.max(1, Number(val));
-    renderCart();
-}
-
-// Hàm mới để cập nhật đơn giá
-function updatePrice(index, val) {
-    cart[index].price = Math.max(0, Number(val));
-    renderCart();
-}
-
-async function finishOrder() {
-    if (cart.length === 0) return;
-    const btn = document.getElementById("btn-finish");
-    btn.disabled = true;
-    btn.innerText = "⌛ Đang xử lý...";
-
-    try {
-        // 1. Lưu khách hàng mới lên Google Sheet nếu cần
-        if (customerInOrder.isNew && customerInOrder.saveToSheet && customerInOrder.phone) {
-            const p = new URLSearchParams();
-            p.append('phone', customerInOrder.phone);
-            p.append('name', customerInOrder.name || "Khách mới");
-            p.append('points', 0);
-            await fetch(CUSTOMER_API, { 
-                method: "POST", 
-                mode: "no-cors", 
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: p.toString() 
-            });
-        }
-
-        // 2. Lưu đơn hàng vào Firebase
-        const orderId = Date.now();
-        await window.fbSet(window.fbRef(window.fbDb, 'orders/' + orderId), {
-            time: new Date().toLocaleString('vi-VN'),
-            phone: customerInOrder.phone || "Khách lẻ",
-            name: customerInOrder.name || "Khách lẻ",
-            items: cart,
-            total: cart.reduce((s, i) => s + (i.price * i.qty), 0)
-        });
-
-        alert("✅ Hoàn tất đơn hàng thành công!");
-        cart = [];
-        customerInOrder = { phone: "", name: "", isNew: false, saveToSheet: true };
-        renderCart();
-        loadCustomer(); // Tải lại danh sách khách để cập nhật người mới
-    } catch (e) {
-        alert("❌ Lỗi: " + e.message);
-        btn.disabled = false;
-        btn.innerText = "HOÀN TẤT ĐƠN HÀNG";
-    }
-}
+    const orderId = Date.now();
+    await window.fbSet(window.fbRef(window.fbDb, 'orders/' + orderId), {
+      time: new Date().toLocaleString('vi-VN'), phone: customerInOrder.phone || "Khách lẻ",
+      name: customerInOrder.name || "Khách lẻ", items: cart, total: cart.reduce((s,i)=> s+(i.price*i.qty),0)
+    });
+    alert("✅ Hoàn tất đơn hàng!");
+    cart = []; customerInOrder = { phone: "", name: "", isNew: false, saveToSheet: true }; renderCart(); loadCustomer();
+  } catch(e) { alert("❌ Lỗi: "+e.message); btn.disabled = false; btn.innerText = "HOÀN TẤT ĐƠN HÀNG"; }
+};
 
 function renderCart() {
-    if (currentTab !== 'sell') return;
-    
-    const now = new Date();
-    const timeStr = now.toLocaleDateString('vi-VN') + ' ' + now.toLocaleTimeString('vi-VN');
-    
-    let total = 0;
-    let html = `
-        <div class="item">
-            <div style="font-size: 13px; color: #666; margin-bottom: 10px;">🕒 <b>Thời gian:</b> ${timeStr}</div>
-            
-            <div id="cust-order-box" class="cust-order-box">
-                <b>👤 Khách hàng:</b><br>
-                <input type="number" id="cust-phone-input" value="${customerInOrder.phone}" placeholder="Nhập SĐT khách..." 
-                    oninput="findCustomerInOrder(this.value)" style="padding: 10px; margin-top: 5px; font-size: 16px;">
-                
-                <div id="customer-info-area">
-                    <div style="margin-top: 5px;">Tên: <b style="color: #2c7be5;">${customerInOrder.name || 'Khách lẻ'}</b></div>
-                </div>
-            </div>
-    `;
-    
-    if (cart.length === 0) {
-        html += `<div class="empty">Chưa có sản phẩm nào</div>`;
-    } else {
-        cart.forEach((item, index) => {
-            const subTotal = item.price * item.qty;
-            total += subTotal;
-            html += `
-                <div class="sell-item">
-                    <button class="btn-remove" onclick="removeFromCart(${index})">X</button>
-                    <b>${item.name}</b><br>
-                    <div style="margin-top: 8px; font-size: 14px;">
-                        Đ.Giá: <input type="number" value="${item.price}" onchange="updatePrice(${index}, this.value)" style="width: 85px; padding: 5px; margin: 0; display: inline-block; font-size: 14px; border: 1px solid #eee;"> x 
-                        SL: <input type="number" value="${item.qty}" onchange="updateQty(${index}, this.value)" style="width: 45px; padding: 5px; margin: 0; display: inline-block; font-size: 14px; border: 1px solid #eee;">
-                    </div>
-                    <div style="text-align: right; color: #555; margin-top: 5px;">Thành tiền: <b>${subTotal.toLocaleString()}đ</b></div>
-                </div>
-            `;
-        });
-        html += `<div class="sell-total">TỔNG: ${total.toLocaleString()}đ</div>`;
-        html += `<button id="btn-finish" onclick="finishOrder()" style="width:100%;padding:15px;background:#28a745;color:white;border:none;border-radius:12px;font-weight:bold;margin-top:15px;cursor:pointer">HOÀN TẤT ĐƠN HÀNG</button>`;
-    }
-    
-    html += `</div>`;
-    resultDiv.innerHTML = html;
-    
-    // Giữ thông tin khách hàng không bị mất khi render lại
-    if (customerInOrder.phone) {
-        findCustomerInOrder(customerInOrder.phone);
-    }
+  if (currentTab !== 'sell') return;
+  const timeStr = new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN');
+  let total = 0;
+  let html = `<div class="card"><div style="margin-bottom:12px">🕒 ${timeStr}</div>
+    <div id="cust-order-box" class="cust-order-box"><b>👤 Khách hàng</b>
+      <input id="cust-phone-input" value="${customerInOrder.phone}" placeholder="Nhập SĐT ..." oninput="findCustomerInOrder(this.value)" style="margin-top:10px; width:100%">
+      <div id="customer-info-area">${customerInOrder.name ? `👋 ${customerInOrder.name}` : 'Khách lẻ'}</div>
+    </div>`;
+  if (cart.length === 0) html += `<div class="empty">🛒 Chưa có sản phẩm</div>`;
+  else {
+    cart.forEach((item, idx) => {
+      const sub = item.price * item.qty; total += sub;
+      html += `<div class="sell-item"><div style="display:flex; justify-content:space-between"><b>${item.name}</b>
+        <button class="btn-remove" onclick="removeFromCart(${idx})">✕</button></div>
+        <div style="margin-top:10px">Đơn giá <input type="number" value="${item.price}" onchange="updatePrice(${idx}, this.value)" class="inline-input-small"> x 
+        SL <input type="number" value="${item.qty}" onchange="updateQty(${idx}, this.value)" style="width:70px"> 
+        <span style="float:right; font-weight:600">${sub.toLocaleString()}đ</span></div></div>`;
+    });
+    html += `<div class="sell-total">TỔNG: ${total.toLocaleString()}đ</div>
+      <button id="btn-finish" class="btn-finish" onclick="finishOrder()">✅ HOÀN TẤT ĐƠN HÀNG</button>`;
+  }
+  html += `</div>`; resultDiv.innerHTML = html;
+  if(customerInOrder.phone) findCustomerInOrder(customerInOrder.phone);
 }
 
-// ===== SEARCH =====
+// SEARCH
 let debounce;
-input.addEventListener("input", () => {
-  clearTimeout(debounce);
-  debounce = setTimeout(doSearch, 300);
-});
+input.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(doSearch, 300); });
 
 function doSearch() {
   const q = input.value.trim();
-  if (!q && currentTab !== 'sell') {
-    resultDiv.innerHTML = "";
-    return;
-  }
-  if (!q && currentTab === 'sell') {
-      renderCart();
-      return;
-  }
+  if (!q && currentTab !== 'sell') { resultDiv.innerHTML = ""; return; }
+  if (!q && currentTab === 'sell') { renderCart(); return; }
 
-  // Tìm kiếm thuốc trong tab Thuốc HOẶC Tab Bán hàng
   if (currentTab === "drug" || currentTab === "sell") {
-    const searchQ = normalize(q);
-    if (searchQ.length < 2) return;
-    const result = drugData.filter(d => d.search.includes(searchQ)).slice(0, 30);
-    
+    const searchQ = normalize(q); if(searchQ.length<2) return;
+    const result = drugData.filter(d => d.search.includes(searchQ)).slice(0,30);
     if (currentTab === "sell") {
-        // Giao diện chọn thuốc khi đang ở tab bán hàng
-        resultDiv.innerHTML = result.length ? result.map(d => `
-          <div class="item">
-            <b>${d.display}</b><br>
-            <span class="price">${Number(d.price).toLocaleString()}đ</span>
-            <button class="btn-add" style="float:right" onclick="addToCart('${d.display}', '${d.price}')">➕ Thêm</button>
-          </div>
-        `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
+      resultDiv.innerHTML = result.length ? result.map(d => `
+        <div class="item"><b>${d.display}</b> <span class="price">${Number(d.price).toLocaleString()}đ</span>
+          <button class="btn-add" style="float:right" onclick="addToCart('${d.display}','${d.price}')">➕ Thêm</button>
+        </div>`).join("") : `<div class="empty">Không tìm thấy</div>`;
     } else {
-        // Giao diện tra cứu thuốc bình thường
-        resultDiv.innerHTML = result.length ? result.map(d => `
-          <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>
-        `).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
+      resultDiv.innerHTML = result.length ? result.map(d => `
+        <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>`).join("") : `<div class="empty">Không tìm thấy</div>`;
     }
   }
-
   else if (currentTab === "customer") {
-    if (q.length < 4) {
-        resultDiv.innerHTML = `<div class="empty">Vui lòng nhập thêm số...</div>`;
-        return;
-    }
-    let exact = [];
-    let near = [];
-    for (let d of customerData) {
-      if (d.phone === q) exact.push(d);
-      else if (d.phone.includes(q)) near.push(d);
-      if (exact.length + near.length > 30) break;
-    }
-    const result = [...exact, ...near].slice(0, 30);
+    if (q.length < 4) { resultDiv.innerHTML = `<div class="empty">Nhập ít nhất 4 số</div>`; return; }
+    let exact=[], near=[]; 
+    customerData.forEach(d => { if(d.phone===q) exact.push(d); else if(d.phone.includes(q)) near.push(d); });
+    const result = [...exact, ...near].slice(0,30);
     resultDiv.innerHTML = result.length ? result.map(d => `
-      <div class="item">
-        <b>${d.name}</b><br>📞 ${d.phone}<br>⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm<br><br>
-        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm (+ / -)" style="width:100%;padding:10px;margin-bottom:8px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box">
-        <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')" style="width:100%;padding:12px;background:#2c7be5;color:white;border:none;border-radius:8px;font-weight:bold;cursor:pointer">➕ Cập nhật điểm</button>
-      </div>
-    `).join("") : `<div class="empty">Không tìm thấy khách hàng</div>`;
+      <div class="item"><b>${d.name}</b><br>📞 ${d.phone}<br>⭐ <b id="p-${d.phone}">${Number(d.points).toLocaleString()}</b> điểm
+        <input type="number" id="i-${d.phone}" placeholder="Nhập điểm (+/-)" class="point-input">
+        <button id="btn-${d.phone}" onclick="updatePoints('${d.phone}')" style="background:var(--primary); color:white; border:none; width:100%; padding:12px; border-radius:40px;">➕ Cập nhật điểm</button>
+      </div>`).join("") : `<div class="empty">Không tìm thấy</div>`;
   }
-
   else if (currentTab === "invoice") {
-    if (q.length < 4) {
-        resultDiv.innerHTML = `<div class="empty">Vui lòng nhập thêm số...</div>`;
-        return;
-    }
+    if (q.length < 4) { resultDiv.innerHTML = `<div class="empty">Nhập thêm số</div>`; return; }
     const filtered = invoiceData.filter(d => String(d["Điện thoại"]).includes(q));
-    if (!filtered.length) {
-      resultDiv.innerHTML = `<div class="empty">Không tìm thấy hóa đơn</div>`;
-      return;
-    }
-    const groups = {};
-    filtered.forEach(d => {
-      const key = `${d["Thời gian"]}|${d["Tên khách hàng"]}|${d["Điện thoại"]}`;
-      if (!groups[key]) {
-        groups[key] = {
-          time: d["Thời gian"], name: d["Tên khách hàng"], phone: d["Điện thoại"],
-          items: [], total: d["Tổng tiền hàng"] || 0
-        };
-      }
-      groups[key].items.push({
-        product: d["Tên hàng"], unit: d["ĐVT"], qty: d["Số lượng"], price: d["Đơn giá"], amount: d["Thành tiền"]
-      });
+    if (!filtered.length) { resultDiv.innerHTML = `<div class="empty">Không có hóa đơn</div>`; return; }
+    const groups = {}; filtered.forEach(d => { const key = `${d["Thời gian"]}|${d["Tên khách hàng"]}|${d["Điện thoại"]}`;
+      if(!groups[key]) groups[key] = { time:d["Thời gian"], name:d["Tên khách hàng"], phone:d["Điện thoại"], items:[], total:d["Tổng tiền hàng"]||0 };
+      groups[key].items.push({ product:d["Tên hàng"], unit:d["ĐVT"], qty:d["Số lượng"], price:d["Đơn giá"], amount:d["Thành tiền"] });
     });
-    const groupsArray = Object.values(groups);
-    groupsArray.sort((a, b) => parseTime(b.time) - parseTime(a.time));
-    const limitedGroups = groupsArray.slice(0, 15);
-    resultDiv.innerHTML = limitedGroups.map(g => `
-      <div class="item">
-        <b>🕒 ${g.time}</b><br>👤 ${g.name}<br>📞 ${g.phone}<br><br>
-        ${g.items.map(i => `• ${i.product} (${i.unit})<br>SL: ${i.qty} | Giá: ${Number(i.price).toLocaleString()}đ<br>Thành tiền: <b>${Number(i.amount).toLocaleString()}đ</b><br><br>`).join("")}
-        <hr><b>💰 Tổng: ${Number(g.total).toLocaleString()}đ</b>
-      </div>
-    `).join("") + (groupsArray.length > 15 ? `<div class="empty">...Chỉ hiển thị 15 hóa đơn mới nhất...</div>` : "");
+    const arr = Object.values(groups).sort((a,b)=> parseTime(b.time)-parseTime(a.time)).slice(0,15);
+    resultDiv.innerHTML = arr.map(g => `<div class="invoice-group"><b>🕒 ${g.time}</b><br>👤 ${g.name} 📞 ${g.phone}<br><br>
+      ${g.items.map(i=>`• ${i.product} (${i.unit}) SL:${i.qty} | ${Number(i.price).toLocaleString()}đ → ${Number(i.amount).toLocaleString()}đ`).join('<br>')}
+      <hr><b>💰 Tổng: ${Number(g.total).toLocaleString()}đ</b></div>`).join("");
   }
 }
 
-// ===== RELOAD =====
-function reloadData(event) {
-  const icon = event.currentTarget;
-  icon.classList.add("spin");
-  if (!confirm("Xóa cache và tải lại dữ liệu?")) {
-    icon.classList.remove("spin");
-    return;
-  }
-  localStorage.removeItem("drugData");
-  localStorage.removeItem("customers");
-  drugData = []; customerData = []; invoiceData = [];
-  resultDiv.innerHTML = "";
+window.reloadData = function(event) {
+  const icon = event.currentTarget; icon.classList.add("spin");
+  if (!confirm("Xóa cache & tải lại dữ liệu?")) { icon.classList.remove("spin"); return; }
+  localStorage.removeItem("drugData"); localStorage.removeItem("customers");
+  drugData = []; customerData = []; invoiceData = []; resultDiv.innerHTML = "";
   updateStatus("Đang reload...");
-  Promise.all([loadDrug(), loadCustomer(), loadInvoice()]).finally(() => {
-    icon.classList.remove("spin");
-    updateStatus();
-  });
-}
+  Promise.all([loadDrug(), loadCustomer(), loadInvoice()]).finally(() => { icon.classList.remove("spin"); updateStatus(); });
+};
 
-// ===== INIT =====
-loadDrugCache();
-loadCustomerCache();
-updateStatus(); 
-input.placeholder = "Nhập tìm kiếm... (Tên thuốc)";
-loadDrug();
-loadCustomer();
-loadInvoice();
+// INIT
+loadDrugCache(); loadCustomerCache(); updateStatus(); 
+loadDrug(); loadCustomer(); loadInvoice();
 setInterval(loadCustomer, 300000);
 </script>
 </body>
