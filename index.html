@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>NHÀ THUỐC HIỀN MAI</title>
   
-  <!-- Font & base style -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
@@ -130,6 +129,23 @@
     /* ----- CONTAINER & INPUT ----- */
     .container {
       padding: 16px 16px 24px;
+    }
+
+    /* ---- KHÁCH HÀNG PANEL (chỉ hiện ở tab bán hàng) ---- */
+    #sell-customer-panel {
+      margin-bottom: 16px;
+      display: none; /* mặc định ẩn */
+    }
+    .customer-panel-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-light);
+    }
+    .new-cust-highlight {
+      background: #fffbeb !important;
+      border-color: #fcd34d !important;
     }
     
     #search {
@@ -264,56 +280,15 @@
       border-top: 2px dashed var(--border-light);
     }
     
-    .cust-order-box {
-      background: #f0f9ff;
-      padding: 16px;
-      border-radius: 18px;
-      margin-bottom: 18px;
-      border: 1px solid #bae6fd;
-    }
-    .new-cust-highlight {
-      background: #fffbeb;
-      border-color: #fcd34d;
-    }
-    
-    /* input inside cards */
-    input[type="number"], input[type="text"] {
-      border: 1.5px solid var(--border-light);
-      border-radius: 18px;
-      padding: 12px 14px;
-      font-size: 1rem;
-      background: white;
-    }
-    
-    /* customer point update */
-    .point-input {
-      width: 100%;
-      margin: 8px 0;
-    }
-    
-    /* invoice groups */
-    .invoice-group {
-      background: var(--card-bg);
-      border-radius: var(--radius-card);
-      padding: 16px;
-      margin-bottom: 16px;
-      box-shadow: var(--shadow-sm);
-    }
-    
-    /* helper */
-    .text-muted { color: var(--text-secondary); }
-    .flex { display: flex; align-items: center; gap: 8px; }
-    
-    /* improve sell quantity / price inline */
     .inline-input-small {
       width: 90px;
       padding: 8px 10px;
       margin: 0 4px;
       text-align: right;
       border-radius: 20px;
+      border: 1.5px solid var(--border-light);
     }
     
-    /* finish button */
     .btn-finish {
       width: 100%;
       padding: 18px;
@@ -333,7 +308,7 @@
 
 <header>
   <div style="font-weight: 700; font-size: 1.8rem; letter-spacing: -0.02em;">📋 NHÀ THUỐC HIỀN MAI</div>
-  <small> • DEV BY Phúc Nguyễn •</small>
+  <small>DEV BY • Phúc Nguyễn</small>
   <div class="reload-btn" onclick="reloadData(event)" title="Đồng bộ & tải lại">🔄</div>
 </header>
 
@@ -345,12 +320,16 @@
 </div>
 
 <div class="container">
+  <div id="sell-customer-panel">
+    <div id="customer-panel-content" class="customer-panel-card">
+      </div>
+  </div>
+
   <input id="search" placeholder="Nhập tên thuốc ..." autocomplete="off">
   <div id="status">Đang khởi tạo...</div>
   <div id="result"></div>
 </div>
 
-<!-- Firebase & logic (giữ nguyên chức năng, tinh chỉnh class) -->
 <script type="importmap">
   {
     "imports": {
@@ -398,20 +377,101 @@ let isDownloading = false;
 const input = document.getElementById("search");
 const resultDiv = document.getElementById("result");
 const statusDiv = document.getElementById("status");
+const customerPanel = document.getElementById("sell-customer-panel");
+const panelContent = document.getElementById("customer-panel-content");
 
-// ===== TAB =====
+// ===== HIỂN THỊ / CẬP NHẬT PANEL KHÁCH HÀNG (FIX LAG) =====
+function renderCustomerPanel() {
+  if (currentTab !== 'sell') return;
+  
+  const phone = customerInOrder.phone || '';
+  
+  // Khởi tạo khung sườn nếu chưa có (tránh vẽ lại toàn bộ gây mất focus)
+  if (!document.getElementById('cust-phone-input')) {
+    panelContent.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span style="font-size:1.5rem;">👤</span>
+        <b style="font-size:1.1rem;">Thông tin khách hàng</b>
+      </div>
+      <input type="tel" id="cust-phone-input" value="${phone}" placeholder="Nhập số điện thoại ..." 
+             oninput="window.findCustomerInOrder(this.value)" 
+             style="width:100%; padding:14px; border-radius:40px; border:1.5px solid var(--border-light); margin-bottom:8px; font-size:1rem;">
+      <div id="customer-info-area" style="min-height: 40px;"></div>
+    `;
+  }
+
+  const infoArea = document.getElementById('customer-info-area');
+  const found = phone ? customerData.find(c => c.phone === phone) : null;
+  let innerHtml = "";
+  
+  if (found) {
+    customerInOrder.name = found.name;
+    customerInOrder.isNew = false;
+    innerHtml = `<div style="background:#e6f7e6; padding:10px 14px; border-radius:30px; color:#0a5e0a;">✅ ${found.name} (thành viên) — ${found.points || 0} điểm</div>`;
+  } else if (phone.length >= 9) {
+    customerInOrder.isNew = true;
+    innerHtml = `
+      <div style="color:#b45309; margin-top:8px; font-weight:500;">✨ Khách hàng mới</div>
+      <input type="text" id="new-cust-name" placeholder="Nhập tên khách hàng" oninput="customerInOrder.name = this.value" 
+             style="width:100%; margin-top:6px; padding:12px; border-radius:40px; border:1.5px solid #fcd34d;">
+      <label style="display:flex; align-items:center; margin-top:10px; gap:8px;">
+        <input type="checkbox" id="saveToSheetCheck" checked onchange="customerInOrder.saveToSheet = this.checked"> 
+        <span>Lưu vào danh sách thành viên</span>
+      </label>
+    `;
+  } else {
+    customerInOrder.name = "";
+    customerInOrder.isNew = false;
+    innerHtml = `<div style="color:#64748b; padding:8px 0;">👋 Khách lẻ (chưa có SĐT)</div>`;
+  }
+  
+  if (infoArea) infoArea.innerHTML = innerHtml;
+  
+  if (customerInOrder.isNew && phone.length >= 9) {
+    panelContent.classList.add('new-cust-highlight');
+  } else {
+    panelContent.classList.remove('new-cust-highlight');
+  }
+}
+
+// Gán lại hàm findCustomerInOrder để cập nhật panel + state
+window.findCustomerInOrder = function(phone) {
+  customerInOrder.phone = phone;
+  const found = customerData.find(c => c.phone === phone);
+  if (found) {
+    customerInOrder.name = found.name;
+    customerInOrder.isNew = false;
+  } else {
+    customerInOrder.isNew = (phone.length >= 9);
+    if (!customerInOrder.isNew) customerInOrder.name = "";
+  }
+  renderCustomerPanel();
+  
+  // Chỉ render lại giỏ hàng nếu không đang gõ (tránh lag)
+  if (currentTab === 'sell' && input.value.trim() === '') {
+    renderCart();
+  }
+};
+
+// ===== TAB SWITCH =====
 window.switchTab = function(e, tab) {
   currentTab = tab;
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  e.target.classList.add("active");
+  if (e) e.target.classList.add("active");
   input.value = "";
   resultDiv.innerHTML = "";
   
-  if (tab === 'drug') input.placeholder = "Nhập tên thuốc ...";
-  else if (tab === 'sell') { input.placeholder = "Tìm thuốc để thêm vào đơn ..."; renderCart(); }
-  else if (tab === 'customer') input.placeholder = "Nhập số điện thoại ...";
-  else if (tab === 'invoice') input.placeholder = "Nhập SĐT tra cứu hóa đơn ...";
-  
+  if (tab === 'sell') {
+    customerPanel.style.display = 'block';
+    input.placeholder = "🔍 Tìm thuốc để thêm vào đơn ...";
+    renderCustomerPanel();
+    renderCart(); 
+  } else {
+    customerPanel.style.display = 'none';
+    if (tab === 'drug') input.placeholder = "Nhập tên thuốc ...";
+    else if (tab === 'customer') input.placeholder = "Nhập số điện thoại ...";
+    else if (tab === 'invoice') input.placeholder = "Nhập SĐT tra cứu hóa đơn ...";
+  }
   updateStatus();
 };
 
@@ -460,6 +520,7 @@ async function loadCustomer() {
     customerData = data.map(d => ({ name: d[0], phone: String(d[1]), points: Number(d[2]) }));
     localStorage.setItem("customers", JSON.stringify(customerData));
     isDownloading = false; updateStatus(); 
+    if (currentTab === 'sell') renderCustomerPanel();
   } catch (e) { isDownloading = false; updateStatus("Lỗi đồng bộ!"); }
 }
 
@@ -476,7 +537,6 @@ function parseTime(timeStr) {
   return new Date(timeStr).getTime() || 0;
 }
 
-// Cập nhật điểm
 window.updatePoints = async function(phone) {
   const inputEl = document.getElementById(`i-${phone}`); const pointEl = document.getElementById(`p-${phone}`); const btnEl = document.getElementById(`btn-${phone}`);
   if (!inputEl || !pointEl) return;
@@ -497,97 +557,123 @@ window.updatePoints = async function(phone) {
   } catch (error) { alert("❌ Lỗi kết nối!"); pointEl.textContent = oldText; if(btnEl){ btnEl.disabled = false; btnEl.innerText = "➕ Cập nhật điểm"; } }
 };
 
-// Bán hàng
-window.findCustomerInOrder = function(phone) {
-  customerInOrder.phone = phone; const found = customerData.find(c => c.phone === phone);
-  const infoArea = document.getElementById("customer-info-area"); const box = document.getElementById("cust-order-box");
-  if (found) {
-    customerInOrder.name = found.name; customerInOrder.isNew = false;
-    if(box) box.className = "cust-order-box"; if(infoArea) infoArea.innerHTML = `<div style="margin-top:8px">👋 <b>${found.name}</b> (thành viên)</div>`;
-  } else {
-    customerInOrder.isNew = phone.length >= 9;
-    if (customerInOrder.isNew) {
-      if(box) box.className = "cust-order-box new-cust-highlight";
-      if(infoArea) infoArea.innerHTML = `<div style="color:#b45309; margin-top:8px">✨ Khách mới! Nhập tên:</div>
-        <input type="text" placeholder="Tên khách hàng" oninput="customerInOrder.name = this.value" style="width:100%; margin-top:6px">
-        <label style="display:flex; align-items:center; margin-top:8px"><input type="checkbox" checked onchange="customerInOrder.saveToSheet = this.checked"> Lưu thành viên</label>`;
-    } else { customerInOrder.name = ""; if(box) box.className = "cust-order-box"; if(infoArea) infoArea.innerHTML = `<div>🧑 Khách lẻ</div>`; }
-  }
-};
-
+// ===== BÁN HÀNG =====
 window.addToCart = function(name, price) {
   const existing = cart.find(i => i.name === name);
   if (existing) existing.qty += 1; else cart.push({ name, price: Number(price), qty: 1 });
-  input.value = ""; renderCart();
+  input.value = "";
+  renderCart();
 };
 window.removeFromCart = function(index) { cart.splice(index, 1); renderCart(); };
 window.updateQty = function(index, val) { cart[index].qty = Math.max(1, Number(val)); renderCart(); };
 window.updatePrice = function(index, val) { cart[index].price = Math.max(0, Number(val)); renderCart(); };
 
 window.finishOrder = async function() {
-  if (cart.length === 0) return; const btn = document.getElementById("btn-finish"); btn.disabled = true; btn.innerText = "⌛ Đang xử lý...";
+  if (cart.length === 0) return; 
+  const btn = document.getElementById("btn-finish"); 
+  btn.disabled = true; btn.innerText = "⌛ Đang xử lý...";
+  
+  if (customerInOrder.isNew && customerInOrder.saveToSheet) {
+    const nameInput = document.getElementById('new-cust-name');
+    if (nameInput) customerInOrder.name = nameInput.value.trim() || "Khách mới";
+  }
+  
   try {
     if (customerInOrder.isNew && customerInOrder.saveToSheet && customerInOrder.phone) {
-      const p = new URLSearchParams(); p.append('phone', customerInOrder.phone); p.append('name', customerInOrder.name||"Khách mới"); p.append('points', 0);
+      const p = new URLSearchParams(); 
+      p.append('phone', customerInOrder.phone); 
+      p.append('name', customerInOrder.name || "Khách mới"); 
+      p.append('points', 0);
       await fetch(CUSTOMER_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: p.toString() });
     }
     const orderId = Date.now();
     await window.fbSet(window.fbRef(window.fbDb, 'orders/' + orderId), {
-      time: new Date().toLocaleString('vi-VN'), phone: customerInOrder.phone || "Khách lẻ",
-      name: customerInOrder.name || "Khách lẻ", items: cart, total: cart.reduce((s,i)=> s+(i.price*i.qty),0)
+      time: new Date().toLocaleString('vi-VN'), 
+      phone: customerInOrder.phone || "Khách lẻ",
+      name: customerInOrder.name || "Khách lẻ", 
+      items: cart, 
+      total: cart.reduce((s,i)=> s+(i.price*i.qty),0)
     });
     alert("✅ Hoàn tất đơn hàng!");
-    cart = []; customerInOrder = { phone: "", name: "", isNew: false, saveToSheet: true }; renderCart(); loadCustomer();
-  } catch(e) { alert("❌ Lỗi: "+e.message); btn.disabled = false; btn.innerText = "HOÀN TẤT ĐƠN HÀNG"; }
+    cart = []; 
+    customerInOrder = { phone: "", name: "", isNew: false, saveToSheet: true }; 
+    renderCustomerPanel();
+    renderCart(); 
+    loadCustomer();
+  } catch(e) { 
+    alert("❌ Lỗi: "+e.message); 
+    btn.disabled = false; 
+    btn.innerText = "HOÀN TẤT ĐƠN HÀNG"; 
+  }
 };
 
 function renderCart() {
   if (currentTab !== 'sell') return;
-  const timeStr = new Date().toLocaleDateString('vi-VN') + ' ' + new Date().toLocaleTimeString('vi-VN');
-  let total = 0;
-  let html = `<div class="card"><div style="margin-bottom:12px">🕒 ${timeStr}</div>
-    <div id="cust-order-box" class="cust-order-box"><b>👤 Khách hàng</b>
-      <input id="cust-phone-input" value="${customerInOrder.phone}" placeholder="Nhập SĐT ..." oninput="findCustomerInOrder(this.value)" style="margin-top:10px; width:100%">
-      <div id="customer-info-area">${customerInOrder.name ? `👋 ${customerInOrder.name}` : 'Khách lẻ'}</div>
-    </div>`;
-  if (cart.length === 0) html += `<div class="empty">🛒 Chưa có sản phẩm</div>`;
-  else {
+
+  // FIX LAG: Nếu đang gõ ở ô SĐT, không render lại phần giỏ hàng bên dưới
+  const phoneInput = document.getElementById('cust-phone-input');
+  if (phoneInput && document.activeElement === phoneInput) return;
+
+  if (input.value.trim() !== '') return;
+  
+  let html = `<div class="card" style="margin-top:8px;">`;
+  if (cart.length === 0) {
+    html += `<div class="empty">🛒 Giỏ hàng trống<br><span style="font-size:0.9rem;">Dùng ô tìm kiếm phía trên để thêm thuốc</span></div>`;
+  } else {
+    let total = 0;
     cart.forEach((item, idx) => {
       const sub = item.price * item.qty; total += sub;
-      html += `<div class="sell-item"><div style="display:flex; justify-content:space-between"><b>${item.name}</b>
-        <button class="btn-remove" onclick="removeFromCart(${idx})">✕</button></div>
-        <div style="margin-top:10px">Đơn giá <input type="number" value="${item.price}" onchange="updatePrice(${idx}, this.value)" class="inline-input-small"> x 
-        SL <input type="number" value="${item.qty}" onchange="updateQty(${idx}, this.value)" style="width:70px"> 
-        <span style="float:right; font-weight:600">${sub.toLocaleString()}đ</span></div></div>`;
+      html += `<div class="sell-item">
+        <div style="display:flex; justify-content:space-between">
+          <b>${item.name}</b>
+          <button class="btn-remove" onclick="removeFromCart(${idx})">✕</button>
+        </div>
+        <div style="margin-top:10px">
+          Đơn giá <input type="number" value="${item.price}" onchange="updatePrice(${idx}, this.value)" class="inline-input-small"> x 
+          SL <input type="number" value="${item.qty}" onchange="updateQty(${idx}, this.value)" style="width:70px"> 
+          <span style="float:right; font-weight:600">${sub.toLocaleString()}đ</span>
+        </div>
+      </div>`;
     });
     html += `<div class="sell-total">TỔNG: ${total.toLocaleString()}đ</div>
       <button id="btn-finish" class="btn-finish" onclick="finishOrder()">✅ HOÀN TẤT ĐƠN HÀNG</button>`;
   }
-  html += `</div>`; resultDiv.innerHTML = html;
-  if(customerInOrder.phone) findCustomerInOrder(customerInOrder.phone);
+  html += `</div>`;
+  resultDiv.innerHTML = html;
 }
 
-// SEARCH
+// ===== SEARCH =====
 let debounce;
-input.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(doSearch, 300); });
+input.addEventListener("input", () => { 
+  clearTimeout(debounce); 
+  debounce = setTimeout(doSearch, 300); 
+  if (currentTab === 'sell' && input.value.trim() === '') {
+    const phoneInput = document.getElementById('cust-phone-input');
+    if (!phoneInput || document.activeElement !== phoneInput) renderCart();
+  }
+});
 
 function doSearch() {
   const q = input.value.trim();
-  if (!q && currentTab !== 'sell') { resultDiv.innerHTML = ""; return; }
-  if (!q && currentTab === 'sell') { renderCart(); return; }
-
-  if (currentTab === "drug" || currentTab === "sell") {
+  if (currentTab === 'sell') {
+    if (!q) { renderCart(); return; }
+    const searchQ = normalize(q);
+    if (searchQ.length < 2) return;
+    const result = drugData.filter(d => d.search.includes(searchQ)).slice(0,30);
+    resultDiv.innerHTML = result.length ? result.map(d => `
+      <div class="item"><b>${d.display}</b> <span class="price">${Number(d.price).toLocaleString()}đ</span>
+        <button class="btn-add" style="float:right" onclick="addToCart('${d.display}','${d.price}')">➕ Thêm</button>
+      </div>`).join("") : `<div class="empty">Không tìm thấy thuốc</div>`;
+    return;
+  }
+  
+  if (currentTab === "drug") {
+    if (!q) { resultDiv.innerHTML = ""; return; }
     const searchQ = normalize(q); if(searchQ.length<2) return;
     const result = drugData.filter(d => d.search.includes(searchQ)).slice(0,30);
-    if (currentTab === "sell") {
-      resultDiv.innerHTML = result.length ? result.map(d => `
-        <div class="item"><b>${d.display}</b> <span class="price">${Number(d.price).toLocaleString()}đ</span>
-          <button class="btn-add" style="float:right" onclick="addToCart('${d.display}','${d.price}')">➕ Thêm</button>
-        </div>`).join("") : `<div class="empty">Không tìm thấy</div>`;
-    } else {
-      resultDiv.innerHTML = result.length ? result.map(d => `
-        <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>`).join("") : `<div class="empty">Không tìm thấy</div>`;
-    }
+    resultDiv.innerHTML = result.length ? result.map(d => `
+      <div class="item"><b>${d.display}</b><br><span class="price">${Number(d.price).toLocaleString()}đ</span></div>
+    `).join("") : `<div class="empty">Không tìm thấy</div>`;
   }
   else if (currentTab === "customer") {
     if (q.length < 4) { resultDiv.innerHTML = `<div class="empty">Nhập ít nhất 4 số</div>`; return; }
@@ -621,7 +707,11 @@ window.reloadData = function(event) {
   localStorage.removeItem("drugData"); localStorage.removeItem("customers");
   drugData = []; customerData = []; invoiceData = []; resultDiv.innerHTML = "";
   updateStatus("Đang reload...");
-  Promise.all([loadDrug(), loadCustomer(), loadInvoice()]).finally(() => { icon.classList.remove("spin"); updateStatus(); });
+  Promise.all([loadDrug(), loadCustomer(), loadInvoice()]).finally(() => { 
+    icon.classList.remove("spin"); 
+    updateStatus(); 
+    if (currentTab === 'sell') renderCustomerPanel();
+  });
 };
 
 // INIT
